@@ -1,5 +1,5 @@
 export default function RankingPage() {
     return (
-        <h1>Ranking Page</h1>
+        <h1 className="text-primary font-bold">Ranking Page</h1>
     )
 }

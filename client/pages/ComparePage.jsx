@@ -1,5 +1,5 @@
 export default function ComparePage() {
     return (
-        <h1>Compare Page</h1>
+        <h1 className="text-primary font-bold">Compare Page</h1>
     )
 }
