@@ -46,25 +46,25 @@ export default function ComparePage() {
   }
 
   return (
-    <section className="relative left-1/2 mx-auto w-[calc(100vw-2rem)] max-w-[1296px] -translate-x-1/2 pt-6 pb-12 text-[#141c2b]">
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-5">
-        <div>
+    <section className="relative left-1/2 mx-auto w-[calc(100vw-2rem)] max-w-[1282px] -translate-x-1/2 pt-6 pb-12 text-[#141c2b] min-[1360px]:left-[calc(50%_-_7px)]">
+      <div className="mb-[30px] flex flex-wrap items-end justify-between gap-5">
+        <div className="pl-2">
           <p className="mb-3 text-xs font-bold tracking-wide text-[#037069]">COMPARE</p>
           <h1 className="text-3xl font-bold leading-tight tracking-[-0.04em] min-[621px]:text-4xl">영화 비교</h1>
-          <p className="mt-2 text-sm text-[#697180]">비교할 영화를 2개 이상, 최대 5개까지 선택하세요.</p>
+          <p className="mt-[13px] text-[15px] text-[#697180]">비교할 영화를 2개 이상, 최대 5개까지 선택하세요.</p>
         </div>
         <button
           type="button"
           onClick={() => navigate("/compare-result", { state: { movies: selectedMovies } })}
           disabled={selectedIds.length < 2}
-          className="h-[42px] rounded-xl bg-[#037069] px-6 text-sm font-bold text-white transition-colors hover:bg-[#025f59] disabled:cursor-not-allowed disabled:bg-[#a8bfbd]"
+          className="h-[42px] w-[152px] shrink-0 rounded-xl bg-[#037069] text-sm font-bold text-white transition-colors hover:bg-[#025f59] disabled:cursor-not-allowed disabled:bg-[#a8bfbd] min-[911px]:mr-[18px]"
         >
           영화 비교하기
         </button>
       </div>
 
-      <div className="grid grid-cols-1 items-stretch gap-5 min-[621px]:grid-cols-2">
-        <section className="rounded-2xl border border-[#e0e5ed] bg-white p-4 min-[621px]:p-6 min-[621px]:min-h-[765px]" aria-labelledby="movie-search-heading">
+      <div className="grid grid-cols-1 items-stretch gap-5 min-[621px]:grid-cols-2 min-[911px]:gap-[26px]">
+        <section className="rounded-2xl border border-[#e0e5ed] bg-white p-4 min-[621px]:p-[23px] min-[621px]:min-h-[765px]" aria-labelledby="movie-search-heading">
           <h2 id="movie-search-heading" className="text-xl font-bold">영화 검색</h2>
           <label className="mt-3 flex h-12 items-center gap-3 rounded-xl border border-[#e0e5ed] px-3 text-[#66738a] focus-within:border-[#037069] focus-within:ring-2 focus-within:ring-[#037069]/10">
             <Search aria-hidden="true" className="size-5 shrink-0" />
@@ -82,12 +82,12 @@ export default function ComparePage() {
             <span className="text-xs text-[#66738a]">{filteredMovies.length}개</span>
           </div>
 
-          <ul className="divide-y divide-[#f0f2f5]">
+          <ul className="mt-4 space-y-4">
             {filteredMovies.map((movie) => {
               const isSelected = selectedIds.includes(movie.id);
               const isAtLimit = !isSelected && selectedIds.length >= 5;
               return (
-                <li key={movie.id} className="flex min-h-[96px] items-center gap-3 py-1.5 min-[621px]:gap-4">
+                <li key={movie.id} className="flex min-h-[96px] items-center gap-3 px-3 py-1.5 min-[621px]:gap-4 min-[621px]:pr-5">
                   <Poster compact />
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-1.5">
@@ -119,14 +119,14 @@ export default function ComparePage() {
           </ul>
         </section>
 
-        <section className="rounded-2xl border border-[#e0e5ed] bg-white p-4 min-[621px]:p-6 min-[621px]:min-h-[765px]" aria-labelledby="selected-movies-heading">
+        <section className="rounded-2xl border border-[#e0e5ed] bg-white p-4 min-[621px]:p-[23px] min-[621px]:min-h-[765px]" aria-labelledby="selected-movies-heading">
           <div className="flex items-center justify-between gap-3">
             <h2 id="selected-movies-heading" className="text-xl font-bold">선택한 영화</h2>
             <span className="text-[13px] font-bold text-[#037069]">{selectedIds.length} / 5편</span>
           </div>
           <p className="mt-2 text-xs text-[#66738a]">비교할 영화를 선택하세요.</p>
-          <div className="mt-4 border-t border-[#e0e5ed] pt-4">
-            <ul className="space-y-3">
+          <div className="mt-4 border-t border-[#e0e5ed] pt-[22px]">
+            <ul className="space-y-[18px]">
               {selectedMovies.map((movie) => (
                 <li key={movie.id} className="flex min-h-20 items-center gap-3 rounded-xl border border-[#e0e5ed] p-2.5 min-[621px]:gap-4 min-[621px]:p-3">
                   <Poster />
