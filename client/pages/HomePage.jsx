@@ -1,5 +1,50 @@
 export default function HomePage() {
     return (
-        <h1 className="text-primary font-bold">Home Page</h1>
+        <div>
+            <h1 className="text-primary font-bold">Home Page</h1>
+            <h1 className="text-primary font-bold">Home Page</h1>
+            <h1 className="text-primary font-bold">Home Page</h1>
+            <h1 className="text-primary font-bold">Home Page</h1>
+            <h1 className="text-primary font-bold">Home Page</h1>
+            <h1 className="text-primary font-bold">Home Page</h1>
+            <h1 className="text-primary font-bold">Home Page</h1>
+            <h1 className="text-primary font-bold">Home Page</h1>
+            <h1 className="text-primary font-bold">Home Page</h1>
+            <h1 className="text-primary font-bold">Home Page</h1>
+            <h1 className="text-primary font-bold">Home Page</h1>
+            <h1 className="text-primary font-bold">Home Page</h1>
+            <h1 className="text-primary font-bold">Home Page</h1>
+            <h1 className="text-primary font-bold">Home Page</h1>
+            <h1 className="text-primary font-bold">Home Page</h1>
+            <h1 className="text-primary font-bold">Home Page</h1>
+            <h1 className="text-primary font-bold">Home Page</h1>
+            <h1 className="text-primary font-bold">Home Page</h1>
+            <h1 className="text-primary font-bold">Home Page</h1>
+            <h1 className="text-primary font-bold">Home Page</h1>
+            <h1 className="text-primary font-bold">Home Page</h1>
+            <h1 className="text-primary font-bold">Home Page</h1>
+            <h1 className="text-primary font-bold">Home Page</h1>
+            <h1 className="text-primary font-bold">Home Page</h1>
+            <h1 className="text-primary font-bold">Home Page</h1>
+            <h1 className="text-primary font-bold">Home Page</h1>
+            <h1 className="text-primary font-bold">Home Page</h1>
+            <h1 className="text-primary font-bold">Home Page</h1>
+            <h1 className="text-primary font-bold">Home Page</h1>
+            <h1 className="text-primary font-bold">Home Page</h1>
+            <h1 className="text-primary font-bold">Home Page</h1>
+            <h1 className="text-primary font-bold">Home Page</h1>
+            <h1 className="text-primary font-bold">Home Page</h1>
+            <h1 className="text-primary font-bold">Home Page</h1>
+            <h1 className="text-primary font-bold">Home Page</h1>
+            <h1 className="text-primary font-bold">Home Page</h1>
+            <h1 className="text-primary font-bold">Home Page</h1>
+            <h1 className="text-primary font-bold">Home Page</h1>
+            <h1 className="text-primary font-bold">Home Page</h1>
+            <h1 className="text-primary font-bold">Home Page</h1>
+            <h1 className="text-primary font-bold">Home Page</h1>
+            <h1 className="text-primary font-bold">Home Page</h1>
+            <h1 className="text-primary font-bold">Home Page</h1>
+            <h1 className="text-primary font-bold">Home Page</h1>
+        </div>
     )
 }

@@ -1,14 +1,25 @@
 import {Link} from "react-router";
+import {Menu, Search} from "lucide-react";
 
 export default function Navbar() {
     return (
-        <header className="bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
-            <div className="mx-auto flex items-center">
-                <h1 className="text-xl font-bold">(로고 이미지)</h1>
-                <nav className="mx-10 flex gap-4 text-sm font-medium">
+        <header className="fixed inset-x-0 top-0 z-[1000] flex h-20 items-center justify-center border-b border-[#DDE1E8] bg-white/70 px-4 backdrop-blur-[12px] min-[621px]:px-6 min-[911px]:px-[72px] max-[620px]:justify-between">
+            <div className="flex h-20 w-full items-center justify-between">
+                <h1 className="h-11 min-h-11 w-[132px] min-w-[132px]">
+                    <img src="../public/images/logo.png" alt="Logo" className="h-full w-full" />
+                </h1>
+                <nav className="flex w-max min-w-[239px] gap-[30px] text-base font-medium text-black min-[621px]:max-[910px]:gap-5 max-[620px]:hidden">
                     <Link to="/">영화 탐색</Link>
                     <Link to="/compare">영화 비교</Link>
                     <Link to="/ranking">펀딩 랭킹</Link>
+                </nav>
+                <form className="ml-[clamp(10px,7vw,120px)] flex h-[50px] w-[300px] items-center rounded-xl border border-[#DDE1E8] bg-[#F0F2F5] min-[621px]:max-[910px]:ml-5 min-[621px]:max-[910px]:w-[30%] max-[620px]:hidden">
+                    <div className="ml-3 size-6 shrink-0"><Search aria-hidden="true" className="size-6" /></div>
+                    <input type="text" placeholder="영화 검색" className="min-w-0 flex-1 border-0 bg-transparent outline-0" />
+                </form>
+                <nav className="hidden items-center gap-2 max-[620px]:flex">
+                    <button type="button" aria-label="검색" className="ml-3 flex size-10 items-center justify-center rounded-full text-2xl"><Search aria-hidden="true" className="size-6" /></button>
+                    <button type="button" aria-label="메뉴" className="ml-3 flex size-10 items-center justify-center rounded-full text-2xl"><Menu aria-hidden="true" className="size-6" /></button>
                 </nav>
             </div>
         </header>
