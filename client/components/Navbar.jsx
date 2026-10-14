@@ -2,13 +2,23 @@ import {Link} from "react-router";
 
 export default function Navbar() {
     return (
-        <header className="bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
-            <div className="mx-auto flex items-center">
-                <h1 className="text-xl font-bold">(로고 이미지)</h1>
-                <nav className="mx-10 flex gap-4 text-sm font-medium">
+        <header className="table-header-group">
+            <div className="header-container">
+                <h1 className="logo_images" herf="">
+                    <img src="../public/images/logo.png" alt="Logo" className="logo" />
+                </h1>
+                <nav className="header-items">
                     <Link to="/">영화 탐색</Link>
                     <Link to="/compare">영화 비교</Link>
                     <Link to="/ranking">펀딩 랭킹</Link>
+                </nav>
+                <form className="search-form">
+                    <div className="serch-icon">⌕</div>
+                    <input type="text" placeholder="영화 검색" className="search-input" />
+                </form>
+                <nav className="header-mobile-container">
+                    <button className="header-mobile-button">⌕</button>
+                    <button className="header-mobile-button">☰</button>
                 </nav>
             </div>
         </header>
