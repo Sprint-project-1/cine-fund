@@ -1,44 +1,49 @@
-import {comments} from "../test-db.js"
+import {comments, movies} from "../test-db.js"
 import FundingComment from "../components/FundingComment.jsx"
 import {useState} from "react";
 
 export default function DetailPage() {
 
+    const movie = movies[2];
     const [confirmBox, setConfirmBox] = useState(false);
+    const goalAchievement = Math.ceil(movie.currentFunding / movie.fundingGoal * 100);
 
     return (
         <div className="">
             <div className="flex my-6">
-                <img className="rounded-lg" src="https://image.tmdb.org/t/p/original/i7UyjfPio0VFHB9rBUZSFyhOoM8.jpg" width={300} alt=""/>
+                <img className="rounded-lg" src="https://image.tmdb.org/t/p/original/i7UyjfPio0VFHB9rBUZSFyhOoM8.jpg" width={320} alt=""/>
                 <div className="flex flex-col ml-6 justify-between w-full">
                     <div className="flex flex-col gap-2">
-                        <h1 className="text-2xl font-extrabold pb-2">레지던트 이블: 0번째 밤</h1>
-                        <p className="text-sm">감독 · 잭 크레거</p>
-                        <p className="text-sm">배우 · 오스틴 에이브람스, 잭 체리, 칼리 레이스, 폴 월터 하우저</p>
-                        <p className="text-sm">의료 택배 기사 브라이언(오스틴 에이브람스)은
-                            긴급 배달을 맡아 심야에 라쿤 시티 종합 병원으로 향한다.
-
-                            눈발을 헤치며 가던 중 갑자기 차로 뛰어든 누군가를 치게 되고,
-                            죽은 줄 알았던 이가 다시 그를 덮쳐온다.</p>
+                        <div className="flex gap-2">
+                            {
+                                movie.genre.map((genre, key) => (
+                                    <p key={key} className="text-[12px] text-primary bg-primary/40 font-bold rounded-full px-4">{genre}</p>
+                                ))
+                            }
+                        </div>
+                        <h1 className="text-2xl font-extrabold pb-2">{movie.title}</h1>
+                        <p className="text-[13px]">감독 · {movie.director}</p>
+                        <p className="text-[13px]">배우 · {movie.cast.join(", ")}</p>
+                        <p className="text-[#697180]">{movie.plot}</p>
                     </div>
                     <div className="bg-white p-4 rounded-lg border border-[#E6EAF0]">
                         <p className="font-bold pb-4">펀딩 현황</p>
                         <div className="flex gap-40 w-full">
                             <div>
                                 <p className="text-sm pb-2">현재 금액</p>
-                                <p className="text-2xl font-bold">$ 120,000</p>
+                                <p className="text-2xl font-bold">₩ {movie.currentFunding.toLocaleString()}</p>
                             </div>
                             <div>
                                 <p className="text-sm pb-2">목표 금액</p>
-                                <p className="text-2xl font-bold">$ 134,500</p>
+                                <p className="text-2xl font-bold">₩ {movie.fundingGoal.toLocaleString()}</p>
                             </div>
                             <div>
                                 <p className="text-sm pb-2">달성률</p>
-                                <p className="text-2xl font-bold">90%</p>
+                                <p className="text-2xl font-bold">{goalAchievement}%</p>
                             </div>
                         </div>
-                        <div className="bg-gray-200 w-full h-3 rounded-lg mt-4 ">
-                            <div className="bg-primary w-[90%] h-3 rounded-lg mt-4 "></div>
+                        <div className="bg-gray-200 w-full h-3 rounded-lg mt-4">
+                            <div className="bg-primary h-3 rounded-lg mt-4" style={{ width: `${goalAchievement}%` }}></div>
                         </div>
                     </div>
                 </div>
