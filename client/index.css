@@ -3,3 +3,7 @@
 @theme {
   --color-primary: #037069;
 }
+
+html {
+  font-size: 16px;
+}
