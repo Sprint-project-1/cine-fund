@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git fetch *)",
+      "Bash(cat compose.yaml package.json src/check.js; echo ---; sed 's/=.*/=<hidden>/' .env; echo ---; docker ps -a --format '{{.Names}} {{.Image}} {{.Status}} {{.Ports}}' 2>&1 | head)",
+      "Bash(docker exec *)",
+      "Bash(docker compose *)",
+      "Bash(node --check prisma/seed.js)",
+      "Bash(node --check src/selectMovies.js)"
+    ],
+    "additionalDirectories": [
+      "/Users/dachshund/teamproject/cinefund-db"
+    ]
+  }
+}
