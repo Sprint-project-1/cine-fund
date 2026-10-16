@@ -19,9 +19,10 @@ CineFund는 지정된 영화 100편을 탐색하고, 여러 작품을 비교한 
 
 - 저장소: [Sprint-project-1/cine-fund](https://github.com/Sprint-project-1/cine-fund)
 - Front-end: Vite + React JSX 기반 scaffold가 있으며 React Router를 사용합니다.
-- 페이지 컴포넌트와 공통 레이아웃 파일은 존재하지만 현재 placeholder 단계입니다. 영화 기능이 완성된 상태는 아닙니다.
+- 영화 탐색·상세·비교 선택·펀딩 랭킹의 화면 UI가 `main`에 반영되어 있습니다. 화면은 예시 데이터 기반이며 실제 백엔드/API 연동이 끝난 상태는 아닙니다.
+- 비교 결과 페이지는 현재 placeholder입니다. 상세 화면은 고정된 예시 영화 데이터를 사용하고, 영화 ID를 경로로 전달하지 않습니다.
 - 현재 확인한 저장소 트리에는 백엔드 서버, Prisma schema/migration, PostgreSQL 설정 및 seed/import 코드가 없습니다.
-- 문서 초안은 이 저장소의 `main`에 아직 등록되지 않았습니다. 이 문서 묶음은 저장소 담당자 검토용입니다.
+- 프로젝트 명세와 개발 문서는 `docs/` 아래 관리합니다.
 
 ## 기술 스택 및 실행
 
@@ -60,13 +61,13 @@ pnpm preview  # 빌드 결과 미리보기
 
 | 현재 `main` 경로 | 화면 | 기존 기획 경로 |
 |---|---|---|
-| `/` | 영화 탐색 | `/` |
-| `/detail` | 영화 상세 (현재 ID 파라미터 없음) | `/{id}` |
-| `/compare` | 영화 비교 선택 | `/comparison` |
-| `/compare-result` | 비교 결과 | `/results` |
-| `/ranking` | 펀딩 랭킹 | `/ranking` |
+| `/` | 예시 데이터 기반 영화 탐색 UI | `/` |
+| `/detail` | 고정 예시 영화 기반 상세 UI (ID 파라미터 없음) | `/{id}` |
+| `/compare` | 예시 영화 기반 비교 선택 UI | `/comparison` |
+| `/compare-result` | placeholder | `/results` |
+| `/ranking` | 예시 데이터 기반 랭킹 UI | `/ranking` |
 
-현재 화면 컴포넌트는 placeholder이며 기능 동작을 의미하지 않습니다. 상세 주소를 `/movies/:movieId` 등으로 바꿀지 포함해 최종 경로는 팀이 결정해야 합니다. 상세 UI와 반응형 기준은 [PAGE_SPEC](docs/PAGE_SPEC.md)을 참고하세요.
+화면 UI 구현과 실제 서비스 기능/API 연동은 구분합니다. 랭킹의 상세 링크 경로와 영화 상세의 동적 ID 전달 등 최종 경로 계약은 팀이 결정해야 합니다. 화면 동작과 미완료 범위는 [PAGE_SPEC](docs/PAGE_SPEC.md)을 참고하세요.
 
 ## 데이터 흐름 계획
 
@@ -75,7 +76,7 @@ pnpm preview  # 빌드 결과 미리보기
 ## 팀 및 진행 상태
 
 - 팀원과 역할: [ROLE_ASSIGNMENT](docs/ROLE_ASSIGNMENT.md)에서 작성
-- 진행 상태: 저장소 생성 및 프런트엔드 scaffold 확인, 기능 구현 전/초기 단계
+- 진행 상태: 주요 페이지 UI가 `main`에 반영됨. 예시 데이터 기반이며 백엔드/API 연동과 통합 검증은 후속 작업
 - Figma: [CineFund 디자인](https://www.figma.com/design/bYyl4ZsROpGqfC7nvNWyTj/시네펀딩-|-영화-탐색·펀딩-UX?node-id=2-6&t=o8qJAmEkbxW6vFaj-1)
 
 ## 문서

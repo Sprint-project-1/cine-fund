@@ -2,7 +2,7 @@
 
 > CineFund 내부 API/DB 식별자는 초안 기준 `movieId`, `tmdbId`, `fundingId`, `nickname`, `amount`, `comment`, `createdAt`이다. TMDB는 초기 영화 데이터 적재에만 쓰며 사용자 요청은 DB 데이터를 사용한다. Figma에 가입 화면은 없고 익명 모의 펀딩 입력 UI가 있다. 미확정 API 세부는 제안/TBD다.
 
-> 구현 현황: GitHub `main`에는 Vite/React JSX 라우팅과 화면 placeholder가 있다. 아래 기능은 요구사항이지 완료 기능이 아니다. 현재 라우트와 기획 경로 차이는 [PAGE_SPEC](PAGE_SPEC.md)에서 관리한다.
+> 구현 현황: GitHub `main`에는 영화 탐색·상세·비교 선택·펀딩 랭킹의 예시 데이터 기반 화면 UI가 병합되어 있다. 비교 결과는 placeholder이며 실제 백엔드/API 연동과 통합 완료를 뜻하지 않는다. 아래 표는 요구사항 및 완료 조건이며, 화면 UI 반영만으로 완료 처리하지 않는다. 현재 라우트와 기획 경로 차이는 [PAGE_SPEC](PAGE_SPEC.md)에서 관리한다.
 
 | ID / 기능 | 목적 및 사용자 행동 | 입력값 / 처리 과정 / 결과 | 예외 상황 | 우선순위 | 완료 조건 |
 |---|---|---|---|---|---|
