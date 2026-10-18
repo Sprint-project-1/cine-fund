@@ -31,7 +31,7 @@ function Poster({ movie, className = "" }) {
       src={movie.posterUrl}
       alt={`${movie.title} 포스터`}
       loading="lazy"
-      className={`shrink-0 rounded-lg object-cover ${className}`}
+      className={`shrink-0 rounded-lg object-contain ${className}`}
     />
   ) : (
     <div
@@ -79,7 +79,7 @@ function RankingItem({ movie, rank }) {
           <span className="w-7 pt-1 text-sm font-bold text-teal-700">
             {String(rank).padStart(2, "0")}
           </span>
-          <Poster movie={movie} className="h-16 w-14" />
+          <Poster movie={movie} className="h-[84px] w-[56px]" />
           <div className="min-w-0 flex-1 pt-1">
             <p className="truncate font-semibold text-gray-900">
               {movie.title}
@@ -118,7 +118,7 @@ function RankingItem({ movie, rank }) {
           {String(rank).padStart(2, "0")}
         </span>
         <div className="flex min-w-0 items-center gap-3">
-          <Poster movie={movie} className="h-[58px] w-[43px]" />
+          <Poster movie={movie} className="h-[84px] w-[56px]" />
           <div className="min-w-0">
             <p className="truncate text-sm font-bold text-gray-900">
               {movie.title}
@@ -236,15 +236,21 @@ export default function RankingPage({ movies = sampleMovies }) {
 
   return (
     <section className="w-full pb-16">
-      <p className="text-xs font-extrabold tracking-[0.14em] text-teal-700">
-        RANKING
-      </p>
-      <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-gray-950">
-        펀딩 랭킹
-      </h1>
-      <p className="mt-2 text-sm text-gray-500">
-        조건별 랭킹을 확인하고, 아래로 스크롤하면 다음 영화가 이어집니다.
-      </p>
+      <div className="mb-[30px] flex flex-wrap items-end justify-between gap-5">
+        <div className="pl-2">
+          <p className="mb-3 text-xs font-bold tracking-wide text-[#037069]">
+            RANKING
+          </p>
+
+          <h1 className="text-3xl font-bold leading-tight tracking-[-0.04em] min-[621px]:text-4xl">
+            펀딩 랭킹
+          </h1>
+
+          <p className="mt-[13px] text-[15px] text-[#697180]">
+            조건별 랭킹을 확인하고, 아래로 스크롤하면 다음 영화가 이어집니다.
+          </p>
+        </div>
+      </div>
 
       <div className="mb-5 mt-7 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
