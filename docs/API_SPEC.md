@@ -1,56 +1,132 @@
 # CineFund API 명세
 
-> **문서 상태: 계약 제안서, 2026-10-19 기준.** 현재 서버에 구현된 경로는 `GET /health`뿐이다. 아래 `/api` 경로와 요청·응답은 팀/API 담당자 확정 전 제안이다. 영화 탐색·상세·랭킹 및 비교 선택/결과 페이지 명세를 하나로 정리했다. 실제 결제는 범위에 없다.
+> **상태: 프런트엔드·백엔드 구현 기준 제안, 2026-10-19.** 현재 문서상 서버에서 구현된 경로는 `GET /health`뿐이다. 아래 `/api` 계약은 페이지 담당자 초안을 통합한 구현 기준이다. 실제 결제, 로그인, 회원가입은 포함하지 않는다.
 
-## 1. 공통 원칙
+## 1. 공통 계약
 
-- 브라우저는 백엔드 API를 호출하고, DB 접근은 서버가 담당한다.
-- TMDB는 초기 영화 데이터 적재에 사용한다. 페이지 조회 시에는 DB에 적재된 지정 영화 100편을 조회하며, 매 요청마다 TMDB에 영화 정보를 다시 요청하지 않는다.
-- 비교 대상 식별자는 외부 `tmdbId`가 아니라 CineFund DB의 `movieId`를 사용한다.
-- seed는 TMDB `budget` 숫자를 `productionBudget`에 그대로 저장하며, 이 필드는 TMDB 원본 제작비(USD)다. 펀딩 목표액은 `productionBudget` 숫자를 환율 계산 없이 그대로 사용해 KRW로 표시한다. 예: `productionBudget = "225000000"`이면 화면의 목표액 표시는 `₩225,000,000`이다. 이는 환율 변환이 아니다. 영화 선정에 사용한 환율 기준은 저장값이나 목표액 표시에 적용하지 않는다.
-- 백엔드 PR의 최신 `API_SPEC.md`와 schema에는 `fundingGoal` 필드가 없다. 따라서 API 응답에는 `productionBudget` 원본 숫자만 포함하고, 프런트엔드가 같은 숫자를 목표액(KRW) 표시값으로 사용한다. `achievementRate`도 API 필드가 아닌 화면 계산값으로 제안한다.
-- 성공/오류 응답의 공통 형식과 API prefix/version은 팀 결정 전 제안이다. 오류 예시는 `{ "error": { "code": "VALIDATION_ERROR", "message": "입력값을 확인해 주세요." } }`이다.
-- Prisma `BigInt` 금액은 JavaScript JSON 직렬화에서 문자열로 전달하는 안이다. 클라이언트는 금액을 부동소수점으로 변환하지 않는다.
-- 랜덤 목록은 페이지를 추가 조회하는 동안 순서가 유지되어야 한다. cursor에 순서를 담는 방식은 백엔드 구현 전 확정한다.
-- 목록 페이지 UI는 한 번에 최대 10편을 보여준다. 비교 선택 화면에서 더 많은 후보를 불러오는 API 요청 크기 상한은 TBD다.
+### 범위와 데이터 흐름
 
-## 2. 현재 구현 상태
+- 브라우저는 백엔드 API만 호출하며, PostgreSQL은 백엔드가 Prisma로 접근한다.
+- 지정 영화 100편은 TMDB에서 초기 적재한 DB 데이터를 사용한다. 사용자 페이지 요청에서 TMDB에 다시 요청하지 않는다.
+- API의 `movieId`는 CineFund DB 내부 ID다. `tmdbId`는 외부 TMDB ID이며 두 값을 혼용하지 않는다.
+- API 경로 prefix는 `/api`를 사용한다. JSON 본문을 주고받으며 JSON 응답의 `Content-Type`은 `application/json`이다.
+- 모든 시간은 ISO 8601 UTC 문자열, 영화 개봉일은 `YYYY-MM-DD` 문자열로 반환한다. 날짜가 없으면 `null`이다.
+- Prisma `BigInt`는 JSON에서 정확도를 잃지 않도록 10진 문자열로 반환한다. 금액을 JavaScript 부동소수점으로 변환하지 않는다.
 
-| Method / Path | 상태 | 목적 |
+### 금액과 달성률
+
+- `productionBudget`에는 TMDB `budget` 숫자를 환율 변환 없이 저장한다. 팀 화면 규칙에 따라 목표액 표시는 이 숫자와 동일한 숫자를 KRW로 표시한다. 예: `"225000000"` → `₩225,000,000`. 환율 계산은 하지 않는다.
+- `totalFundedAmount`는 누적 모의 펀딩액이며 KRW 단위의 정수 문자열이다. 아직 펀딩 기록이 없으면 `"0"`이다.
+- `fundingGoal`은 응답하지 않는다. 화면에서 목표액을 표시할 때 `productionBudget` 숫자를 사용한다.
+- 달성률은 `totalFundedAmount / productionBudget × 100`으로 계산한다. `productionBudget`이 `null` 또는 0이면 달성률은 계산 불가로 처리한다. 이 값은 별도 API 필드가 아니다.
+- `productionBudget`은 원본 TMDB 제작비 값이면서 위 팀 표시 규칙에 따라 같은 숫자가 원화 목표액으로도 쓰인다. 화면 문구에서는 제작비와 목표액의 의미를 구분한다.
+
+### 공통 영화 응답 모델
+
+목록, 상세, 비교 응답은 아래 필드명과 타입을 공유한다. 목록 화면이 쓰지 않는 필드도 `null` 가능 필드는 일관성을 위해 포함한다.
+
+| 필드 | 타입 | 설명 |
 |---|---|---|
-| `GET /health` | 구현됨 | 서버 상태 확인 |
-| `GET /api/movies` | 제안 | 영화 목록·제목 검색·펀딩액 정렬·페이지네이션 |
-| `GET /api/movies/{movieId}` | 제안 | 영화 상세 조회 |
-| `POST /api/comparisons` | 제안 | 선택한 2~5편의 비교 데이터 조회 |
+| `movieId` | integer | CineFund 내부 ID |
+| `tmdbId` | integer | TMDB 외부 ID |
+| `title` | string | 한국어 제목 |
+| `originalTitle` | string \| null | 원제 |
+| `koreanCertification` | string \| null | 한국 관람 등급 |
+| `posterPath` | string \| null | 포스터 경로. 전체 URL이 아님 |
+| `overview` | string \| null | 줄거리 |
+| `director` | string \| null | 감독 |
+| `actors` | string[] | 출연진. 값이 없으면 빈 배열 |
+| `releaseDate` | string \| null | 개봉일 (`YYYY-MM-DD`) |
+| `genres` | string[] | 장르. 값이 없으면 빈 배열 |
+| `tagline` | string \| null | 태그라인 |
+| `productionBudget` | decimal string \| null | TMDB `budget` 원본 정수 |
+| `totalFundedAmount` | decimal string | 누적 모의 펀딩액. 없으면 `"0"` |
 
-펀딩 등록·코멘트 조회/수정 API는 화면 및 기능 합의가 끝나지 않아 아래 7절의 미확정 항목으로 둔다.
+포스터 URL 조합은 프런트엔드가 TMDB 이미지 base URL과 `posterPath`를 사용한다. `posterPath`가 `null`이면 대체 이미지를 표시한다.
 
-## 3. 영화 목록 및 비교 선택 후보 조회
+### 공통 오류 응답
+
+오류는 다음 형식으로 반환하며 내부 경로, SQL, stack trace, 비밀 값은 노출하지 않는다.
+
+```json
+{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "요청 값을 확인해 주세요."
+  }
+}
+```
+
+| HTTP 상태 | 코드 | 사용 상황 |
+|---:|---|---|
+| 400 | `VALIDATION_ERROR` | 잘못된 query, path, body 값 |
+| 403 | `INVALID_CREDENTIAL` | 펀딩 취소 또는 코멘트 수정 비밀번호 불일치 |
+| 404 | `MOVIE_NOT_FOUND` | 상세/코멘트/펀딩 대상 영화가 없거나 비교 요청의 영화 ID 일부가 없음 |
+| 404 | `FUNDING_NOT_FOUND` | 취소 또는 코멘트 수정 대상 기록이 없음 |
+| 500 | `INTERNAL_ERROR` | 예기치 않은 서버 오류 |
+| 503 | `SERVICE_UNAVAILABLE` | DB 등 필수 의존 서비스를 사용할 수 없음 |
+
+### 구현 상태
+
+| Method | Path | 상태 | 기능 |
+|---|---|---|---|
+| `GET` | `/health` | 구현됨 | 서버 상태 확인 |
+| `GET` | `/api/movies` | 미구현 | 영화 목록·제목 검색·정렬·페이지네이션 |
+| `GET` | `/api/movies/{movieId}` | 미구현 | 영화 상세 조회 |
+| `GET` | `/api/movies/{movieId}/comments` | 미구현 | 영화별 코멘트 조회 |
+| `POST` | `/api/movies/{movieId}/fundings` | 미구현 | 익명 모의 펀딩 생성 |
+| `POST` | `/api/fundings/{fundingId}/cancel` | 미구현 | 비밀번호 검증 후 모의 펀딩 취소 |
+| `PATCH` | `/api/fundings/{fundingId}/comment` | 미구현 | 비밀번호 검증 후 코멘트 수정 |
+| `POST` | `/api/comparisons` | 미구현 | 2~5편 비교 정보 조회 |
+
+## 2. 페이지와 API 연결
+
+| 페이지 | API 호출 |
+|---|---|
+| 홈 `/` | 목록 `GET /api/movies?limit=10`; 펀딩 Top 3 `GET /api/movies?limit=3&sortBy=amount&order=desc` |
+| 영화 탐색/검색 | `GET /api/movies?limit=10`, 필요하면 `q` 및 `cursor` 추가 |
+| 영화 상세 | `GET /api/movies/{movieId}`; 코멘트 `GET /api/movies/{movieId}/comments`; 모의 펀딩 `POST /api/movies/{movieId}/fundings`; 취소 `POST /api/fundings/{fundingId}/cancel`; 코멘트 수정 `PATCH /api/fundings/{fundingId}/comment` |
+| 비교 선택 | 후보 검색/조회에 `GET /api/movies` 사용; 선택 상태는 프런트엔드에서 관리 |
+| 비교 결과 | `POST /api/comparisons` |
+| 펀딩 랭킹 | `GET /api/movies?limit=10&sortBy=amount&order=desc` 또는 `order=asc`; 달성률 정렬은 `sortBy=achievementRate` |
+
+## 3. 영화 목록 조회
 
 `GET /api/movies`
 
-영화 탐색 페이지와 비교 선택 화면에서 함께 사용한다. 목록 응답의 `movieId`를 상세 조회와 비교 결과 요청에 전달한다.
+홈, 영화 탐색, 비교 선택 후보, 랭킹이 공유한다. 결과 범위는 DB에 적재된 지정 영화 100편이다.
 
 ### Query parameters
 
-| 이름 | 타입 | 필수 | 설명 |
+| 이름 | 타입 | 필수 | 규칙 |
 |---|---|---:|---|
-| `limit` | number | 아니요 | 응답할 영화 수. 백엔드 PR 초안 기본값 20, 최댓값 50. 영화 탐색 화면은 10, 랭킹 Top 3는 3을 명시해 요청한다. |
-| `cursor` | string | 아니요 | 다음 목록을 요청하는 불투명한 페이지 토큰 |
-| `q` | string | 아니요 | **백엔드 확정 전 제안.** 영화 제목 검색어로만 검색한다. 부분 일치·대소문자·공백 정규화 방식도 TBD. |
-| `sortBy` | string | 아니요 | `amount` 지정 시 `Movie.totalFundedAmount` 기준 누적 펀딩액순. 생략 시 기본 랜덤 목록 |
-| `order` | string | 아니요 | `asc` 또는 `desc`. `sortBy`가 있을 때 정렬 방향 |
+| `limit` | positive integer | 아니요 | 기본 20, 최대 50. 영화 탐색/랭킹 화면은 `limit=10`, 홈 Top 3는 `limit=3`을 보낸다. |
+| `cursor` | opaque string | 아니요 | 이전 응답의 `page.nextCursor`를 그대로 전달한다. 첫 페이지에서는 생략한다. |
+| `q` | string | 아니요 | 제목 검색 전용. 앞뒤 공백을 제거하고, 공백만 있으면 검색 조건이 없는 것으로 처리한다. 제목에 검색어가 포함되는지 대소문자 구분 없이 검사한다. 연도·장르·원제는 검색하지 않는다. |
+| `sortBy` | enum | 아니요 | `amount` 또는 `achievementRate`. 생략하고 `q`도 없으면 랜덤 목록, `q`만 있으면 제목 오름차순 결과를 반환한다. |
+| `order` | enum | 아니요 | `asc` 또는 `desc`. `sortBy`가 있을 때만 사용할 수 있으며, 생략하면 `desc`다. |
+
+`sortBy`가 없고 `order`만 전달되면 400을 반환한다. `limit`은 1~50의 정수만 허용한다. 검색어/정렬/페이지 크기가 달라지면 기존 cursor를 재사용하지 않고 첫 페이지부터 요청한다.
+
+### 정렬 및 cursor 규칙
+
+- `sortBy=amount`는 `totalFundedAmount` 기준이다.
+- `sortBy=achievementRate`는 `totalFundedAmount / productionBudget × 100` 기준이다. `productionBudget`이 `null` 또는 0인 영화는 두 방향 모두 결과 뒤에 둔다.
+- 금액 또는 달성률이 같으면 `movieId` 오름차순으로 정렬한다. 제목 검색 기본 정렬은 `title` 오름차순, 제목이 같으면 `movieId` 오름차순이다.
+- 검색과 명시적 정렬이 없는 첫 요청에서는 100편의 순서를 한 번 무작위로 만든다. 응답 cursor는 그 순서의 다음 위치와 해당 요청의 필터/정렬 조건을 보존한다. 후속 페이지에서 순서를 다시 섞지 않는다.
+- cursor는 불투명한 값이며 클라이언트가 생성·해석하지 않는다. cursor의 요청 조건이 현재 query와 맞지 않거나 유효하지 않으면 400을 반환한다.
+- 마지막 페이지는 `nextCursor: null`, `hasMore: false`다. 다음 항목이 없을 때 빈 페이지를 추가로 반환하지 않는다.
+- 이 API는 페이지 번호 대신 cursor를 사용한다. 영화 탐색 UI는 페이지별 cursor를 메모리에 보관해 번호형 페이지 컨트롤을 연결한다. 방문하지 않은 페이지 번호로 바로 이동할 수 없으며, 검색어·정렬·페이지 크기가 바뀌면 페이지와 cursor 캐시를 초기화한다.
 
 ### 요청 예시
 
 ```http
 GET /api/movies?limit=10
-GET /api/movies?limit=10&cursor={nextCursor}
+GET /api/movies?limit=10&cursor=OPAQUE_CURSOR
 GET /api/movies?limit=10&q=%EA%B8%B0%EC%83%9D%EC%B6%A9
-GET /api/movies?limit=3&sortBy=amount&order=desc
+GET /api/movies?limit=10&sortBy=amount&order=desc
+GET /api/movies?limit=10&sortBy=achievementRate&order=asc
 ```
-
-`q`가 있으면 제목만 검색한다. 기본 랜덤 목록은 cursor로 다음 페이지를 조회해도 같은 순서를 유지해야 하며, 검색어/정렬 조건이 바뀌면 첫 페이지부터 다시 요청한다.
 
 ### 응답 예시 (200)
 
@@ -59,109 +135,274 @@ GET /api/movies?limit=3&sortBy=amount&order=desc
   "items": [
     {
       "movieId": 1,
-      "title": "영화 제목",
-      "releaseDate": "2024-01-01",
-      "genres": ["드라마", "미스터리"],
+      "tmdbId": 969681,
+      "title": "스파이더맨: 브랜드 뉴 데이",
+      "originalTitle": "Spider-Man: Brand New Day",
+      "koreanCertification": "12",
       "posterPath": "/example.jpg",
-      "productionBudget": "2000000000",
+      "overview": "영화 줄거리",
+      "director": "감독 이름",
+      "actors": ["배우 이름"],
+      "releaseDate": "2026-07-29",
+      "genres": ["SF", "액션", "모험"],
+      "tagline": "영화 태그라인",
+      "productionBudget": "225000000",
       "totalFundedAmount": "0"
     }
   ],
   "page": {
-    "nextCursor": "opaque-token",
+    "nextCursor": "OPAQUE_CURSOR",
     "hasMore": true
   }
 }
 ```
 
-`movieId`는 CineFund DB의 ID다. `releaseDate`에서 화면 표시용 연도를 만들 수 있다. `posterPath`가 전체 URL이 아닌 경로라면 이미지 base URL 조합 규칙을 FE/BE가 함께 정한다. `productionBudget`은 TMDB 원본 숫자(USD)이며 BigInt JSON 직렬화에 따라 문자열 또는 `null`로 전달한다. 목표액 표시가 필요한 화면은 이 숫자를 환율 변환 없이 동일한 숫자의 KRW로 표시한다. `fundingGoal`과 `achievementRate`는 백엔드 PR 계약상 응답 필드가 아니며, 달성률 UI를 유지한다면 FE에서 계산한다.
+검색 결과가 없으면 `200`과 빈 `items`, `nextCursor: null`, `hasMore: false`를 반환한다.
 
-### 랭킹 Top 3
+### 홈 Top 3 및 랭킹
 
-별도 랭킹 API 대신 목록 조회를 재사용한다.
+별도 endpoint 없이 같은 목록 조회를 재사용한다.
 
 ```http
 GET /api/movies?limit=3&sortBy=amount&order=desc
+GET /api/movies?limit=10&sortBy=amount&order=desc
+GET /api/movies?limit=10&sortBy=amount&order=asc
 ```
 
-누적액 동률은 `movieId` 오름차순으로 고정하는 안을 제안한다. 정렬 및 cursor에서도 동일한 보조 정렬을 적용해야 페이지 간 중복·누락을 줄일 수 있다. 펀딩 데이터가 없을 때는 누적액이 모두 0일 수 있다.
+Top 3와 랭킹은 누적 펀딩액을 기준으로 한다. 동률은 `movieId` 오름차순이다. 랭킹 화면의 달성률 정렬은 같은 목록 endpoint에 `sortBy=achievementRate`를 보낸다.
 
 ## 4. 영화 상세 조회
 
 `GET /api/movies/{movieId}`
 
-목록/랭킹에서 선택한 영화의 CineFund DB 정보를 조회한다. 단수형 `/api/movie/{id}` 대신 목록과 같은 복수형 경로를 사용하도록 통일한 제안이다.
-
-### Path parameter
-
-| 이름 | 타입 | 필수 | 설명 |
-|---|---|---:|---|
-| `movieId` | integer | 예 | CineFund DB의 영화 ID. 목록 응답의 `movieId` |
-
-### 요청 예시
+`movieId`는 목록 결과의 양의 정수 내부 ID다. FE 라우트에서 해당 ID를 전달해 요청한다.
 
 ```http
 GET /api/movies/1
 ```
 
-### 응답 예시 (200)
+성공 응답 (200):
 
 ```json
 {
-  "movieId": 1,
-  "title": "영화 제목",
-  "releaseDate": "2024-01-01",
-  "genres": ["드라마", "미스터리"],
-  "posterPath": "/example.jpg",
-  "overview": "영화 줄거리",
-  "director": "감독 이름",
-  "productionBudget": "1000000",
-  "totalFundedAmount": "0"
+  "movie": {
+    "movieId": 1,
+    "tmdbId": 969681,
+    "title": "스파이더맨: 브랜드 뉴 데이",
+    "originalTitle": "Spider-Man: Brand New Day",
+    "koreanCertification": "12",
+    "posterPath": "/example.jpg",
+    "overview": "영화 줄거리",
+    "director": "감독 이름",
+    "actors": ["배우 이름"],
+    "releaseDate": "2026-07-29",
+    "genres": ["SF", "액션", "모험"],
+    "tagline": "영화 태그라인",
+    "productionBudget": "225000000",
+    "totalFundedAmount": "0"
+  }
 }
 ```
 
-`overview`, `director`, `productionBudget`는 백엔드 데이터에 존재하고 화면에서 사용할 때 제공하는 안이다. seed의 `budget`은 숫자 그대로 DB의 `productionBudget`에 매핑하며, seed 코드 주석상 TMDB 원본 제작비(USD)다. 백엔드 PR 스키마에는 별도 `fundingGoal`이 없고 API 초안도 이를 응답하지 않는다. 목표액을 표시하는 프런트엔드는 `productionBudget` 숫자를 환율 계산 없이 동일한 숫자의 KRW로 표시한다. 예: `productionBudget: "225000000"` → `₩225,000,000`. 제작비가 `null`이면 목표액 표시도 불가하다.
+잘못된 `movieId` 형식은 400, 존재하지 않는 ID는 404다. 응답은 공통 영화 모델을 사용한다.
 
-## 5. 비교 결과 조회
+## 5. 영화 코멘트 조회
+
+`GET /api/movies/{movieId}/comments`
+
+해당 영화의 모의 펀딩 코멘트를 최신순으로 조회한다. 코멘트가 없으면 빈 목록을 반환한다.
+
+### Query parameters
+
+| 이름 | 타입 | 필수 | 규칙 |
+|---|---|---:|---|
+| `limit` | positive integer | 아니요 | 기본 10, 최대 10 |
+| `cursor` | opaque string | 아니요 | 이전 응답의 `page.nextCursor`; 첫 페이지에서는 생략 |
+
+정렬은 `createdAt` 내림차순, 같은 시각이면 `fundingId` 내림차순이다. cursor 페이지 사이에도 이 정렬을 유지한다.
+
+```http
+GET /api/movies/1/comments?limit=10
+```
+
+성공 응답 (200):
+
+```json
+{
+  "items": [
+    {
+      "fundingId": "9001",
+      "movieId": 1,
+      "nickname": "영화팬",
+      "amount": "10000",
+      "comment": "기대돼요",
+      "createdAt": "2026-10-19T03:00:00.000Z"
+    }
+  ],
+  "page": {
+    "nextCursor": null,
+    "hasMore": false
+  }
+}
+```
+
+`password`와 `passwordHash`는 응답하지 않는다. 잘못된 `movieId` 형식은 400, 영화가 없으면 404다.
+
+## 6. 익명 모의 펀딩 생성
+
+`POST /api/movies/{movieId}/fundings`
+
+로그인이나 실제 결제 없이 모의 펀딩 기록 한 건을 생성한다. 금액 반영은 서버에서만 수행한다.
+
+요청 본문:
+
+```json
+{
+  "amount": "10000",
+  "nickname": "영화팬",
+  "comment": "기대돼요",
+  "password": "example-secret"
+}
+```
+
+- 네 필드는 모두 요청에 포함한다. `amount`, `nickname`, `password`는 비어 있지 않아야 하며 `comment` 빈 값 허용 여부는 TBD다.
+- `amount`: 10진 정수 문자열, `1` 이상, PostgreSQL signed `BIGINT` 최댓값 이하. 통화는 KRW다. 소수, 부호, 지수 표기는 허용하지 않는다.
+- `nickname`: 앞뒤 공백 제거 후 1~8 Unicode code point.
+- `comment`: 문자열, 최대 100 Unicode code point. 빈 코멘트 허용 여부와 앞뒤 공백 처리 규칙은 TBD다.
+- `password`: 총 8~12자이며 영문자(`A-Z`, `a-z`)와 숫자(`0-9`)를 각각 하나 이상 포함한다. 펀딩 생성, 취소, 코멘트 수정에서 같은 기준을 적용한다. 생성 시 평문으로 저장·응답·로그에 남기지 않고 검증된 단방향 비밀번호 해시로 저장한다.
+- 시안의 동의 체크 항목은 문구와 동의 기록의 필요성이 확정되지 않았다. 의미와 서버 보관 필요성을 정하기 전까지 요청 필드로 간주하지 않는다. 이 항목을 펀딩 생성 필수 조건으로 확정하면 요청에 동의 여부를 추가하고 관련 화면/API 문서를 함께 갱신한다.
+- 요청값 검증에 실패하면 400, 해당 영화가 없으면 404다. 빈 코멘트 허용 여부와 앞뒤 공백 처리 규칙은 팀 결정 후 이 계약을 갱신한다.
+
+Funding 원장 생성과 `Movie.totalFundedAmount` 증가는 하나의 DB 트랜잭션에서 처리한다. 누적액 증가는 동시 요청에서도 유실되지 않도록 원자적으로 반영하며, `totalFundedAmount`는 해당 영화 Funding 기록의 금액 합과 일치시킨다. 사용자가 취소를 확인하면 아래 취소 API로 모의 기록을 제거할 수 있다. 실제 결제는 없다.
+
+성공 응답 (201):
+
+```json
+{
+  "funding": {
+    "fundingId": "9001",
+    "movieId": 1,
+    "nickname": "영화팬",
+    "amount": "10000",
+    "comment": "기대돼요",
+    "createdAt": "2026-10-19T03:00:00.000Z"
+  },
+  "totalFundedAmount": "35000"
+}
+```
+
+응답에는 비밀번호와 해시가 포함되지 않는다.
+
+## 7. 펀딩 코멘트 수정
+
+`PATCH /api/fundings/{fundingId}/comment`
+
+로그인 계정 대신 생성 시 설정한 비밀번호를 확인해 해당 기록의 코멘트만 수정한다. 금액·닉네임·영화 연결은 변경하지 않는다.
+
+요청 본문:
+
+```json
+{
+  "password": "example-secret",
+  "comment": "수정한 코멘트"
+}
+```
+
+두 필드는 모두 필수다. `fundingId`는 양의 정수 ID다. BigInt ID는 경로에서 10진수 문자열로 전달한다. 비밀번호는 영문자와 숫자를 각각 하나 이상 포함한 8~12자여야 하며, 새 `comment`는 최대 100 Unicode code point다. 빈 값 및 코멘트 공백 정규화 규칙은 TBD다. 비밀번호가 틀리면 403 `INVALID_CREDENTIAL`, 기록이 없으면 404 `FUNDING_NOT_FOUND`, 입력 형식이 잘못되면 400을 반환한다. 수정 실패 시 기록은 변경하지 않는다.
+
+성공 응답 (200):
+
+```json
+{
+  "funding": {
+    "fundingId": "9001",
+    "movieId": 1,
+    "comment": "수정한 코멘트",
+    "updatedAt": "2026-10-19T03:30:00.000Z"
+  }
+}
+```
+
+응답 및 로그에 비밀번호나 해시를 포함하지 않는다. 수정 횟수·기간 제한은 두지 않는다.
+
+## 8. 모의 펀딩 취소
+
+`POST /api/fundings/{fundingId}/cancel`
+
+상세 화면의 **펀딩 취소 확인 팝업**에서 `확인`을 눌렀을 때 기존 모의 펀딩 기록을 취소한다. 실제 결제 취소나 환불은 발생하지 않는다. 팝업의 `취소` 버튼과 `×`는 팝업을 닫기만 하며 API를 호출하지 않는다.
+
+요청 본문:
+
+```json
+{ "password": "example-secret" }
+```
+
+`password`는 필수이며 영문자와 숫자를 각각 하나 이상 포함한 8~12자여야 한다. `fundingId`는 양의 정수 ID를 10진수 경로 문자열로 전달한다. 서버는 저장된 비밀번호 해시를 검증한다. 비밀번호가 틀리면 403 `INVALID_CREDENTIAL`, 기록이 없으면 404 `FUNDING_NOT_FOUND`, 잘못된 ID나 본문이면 400을 반환하며 이때 기록과 누적액은 바뀌지 않는다.
+
+비밀번호가 맞으면 한 DB 트랜잭션에서 해당 Funding 행이 아직 존재하는 경우에만 삭제하고 영화의 `totalFundedAmount`에서 취소 금액을 원자적으로 차감한다. 동시 취소 요청도 실제 삭제에 성공한 한 요청만 차감한다. 코멘트 목록에서도 해당 기록은 더 이상 반환하지 않는다. 이미 취소된 ID는 404를 반환한다.
+
+성공 응답 (200):
+
+```json
+{
+  "fundingId": "9001",
+  "movieId": 1,
+  "totalFundedAmount": "25000"
+}
+```
+
+응답과 로그에는 비밀번호나 해시를 포함하지 않는다. API 성공 후 프런트엔드는 상세·랭킹 누적액을 새 값으로 갱신하고 해당 코멘트를 제거한다.
+
+## 9. 비교 결과 조회
 
 `POST /api/comparisons`
 
-비교 선택 페이지에서 고른 2~5편의 비교 데이터를 한 번에 조회한다. 비교 결과 페이지 담당자가 결석한 상황을 고려해, 기존 백엔드 참조에 있던 비교 endpoint를 기반으로 정리한 제안이다. 이 요청은 비교 선택을 서버에 저장하거나 펀딩 데이터를 변경하지 않는다.
+비교 선택에서 받은 2~5개의 영화 ID에 대해 한 번에 공통 영화 모델을 반환한다. 이 endpoint는 선택을 저장하거나 데이터를 변경하지 않는다.
 
-### 요청 본문
+요청 본문:
 
 ```json
-{
-  "movieIds": [1, 2]
-}
+{ "movieIds": [1, 2, 3] }
 ```
 
-`movieIds`는 2~5개의 서로 다른 양의 정수여야 한다. 결과 순서는 요청에 전달한 ID 순서와 같게 반환하는 안을 제안한다.
+- `movieIds`는 서로 다른 양의 정수 2~5개여야 한다. 형식 오류, 중복 ID, 개수 범위 오류는 400이다.
+- 하나라도 DB에 없는 ID면 전체 요청을 404로 실패시킨다. 일부 항목만 성공 응답으로 반환하지 않는다.
+- 성공 응답 `items`는 입력 배열과 동일한 순서를 유지한다.
 
-### 응답 예시 (200)
+성공 응답 (200):
 
 ```json
 {
   "items": [
     {
       "movieId": 1,
+      "tmdbId": 969681,
       "title": "영화 제목 A",
-      "releaseDate": "2024-01-01",
-      "genres": ["드라마"],
+      "originalTitle": "Original Title A",
+      "koreanCertification": "12",
       "posterPath": "/movie-a.jpg",
       "overview": "영화 설명",
       "director": "감독 이름",
-      "productionBudget": "1000000",
+      "actors": ["배우 이름"],
+      "releaseDate": "2026-07-29",
+      "genres": ["SF", "액션"],
+      "tagline": null,
+      "productionBudget": "225000000",
       "totalFundedAmount": "25000"
     },
     {
       "movieId": 2,
+      "tmdbId": 123456,
       "title": "영화 제목 B",
-      "releaseDate": "2023-05-10",
-      "genres": ["미스터리"],
-      "posterPath": "/movie-b.jpg",
+      "originalTitle": null,
+      "koreanCertification": null,
+      "posterPath": null,
       "overview": null,
       "director": null,
+      "actors": [],
+      "releaseDate": null,
+      "genres": [],
+      "tagline": null,
       "productionBudget": null,
       "totalFundedAmount": "0"
     }
@@ -169,63 +410,29 @@ GET /api/movies/1
 }
 ```
 
-예시는 형식 설명용이며 실제 결과는 요청한 영화 수와 같아야 한다. `overview`, `director`, `productionBudget`처럼 DB에 값이 없을 수 있는 항목은 `null`로 반환하는 안이다. 목표액은 FE 표시 규칙으로 `productionBudget`의 숫자를 KRW로 포맷하며, 달성률을 화면에 표시할 경우 FE가 `totalFundedAmount / productionBudget × 100`으로 계산한다. `totalFundedAmount`는 백엔드 PR schema에 저장되는 누적액 필드이며, 집계·갱신은 Funding 관련 정책과 별도로 일관되게 유지해야 한다.
+목표액/달성률은 별도 필드로 반환하지 않는다. 프런트엔드가 공통 금액 규칙에 따라 표시·계산한다. AI 요약은 이 API 범위가 아니다.
 
-비교 화면에서 필요한 공통 필드는 제목, 개봉일, 장르, 포스터, 줄거리, 감독, 제작비 숫자, 누적 펀딩액으로 제안한다. API는 DB 필드인 `productionBudget`과 `totalFundedAmount`를 반환하고, 목표액(동일 숫자의 KRW 표시)과 달성률은 FE에서 계산한다. AI 요약과 순위는 이 응답에 포함하지 않는다.
+## 10. 비교 선택 상태 전달
 
-### 비교 선택 상태 전달
+- 후보 검색 및 목록은 `GET /api/movies`를 사용한다. 검색은 `q`에 제목 검색어를 전달한다.
+- 선택 상태는 서버에 저장하지 않는다. 프런트엔드가 `movieId` 배열을 결과 화면으로 전달한다. 쿠키나 localStorage에 보존하지 않는다.
+- 결과 화면은 전달받은 ID로 `POST /api/comparisons`를 호출한다. URL query 사용 여부는 FE 라우팅 구현 선택이며 API 요청 계약에는 영향을 주지 않는다.
 
-- 비교 선택 화면은 `GET /api/movies`를 사용해 제목으로 후보를 검색하고, 선택된 `movieId` 배열을 결과 페이지로 전달한다.
-- 서버에 선택 상태를 저장하지 않는다. 화면 간 전달은 FE에서 URL query 또는 메모리 상태 중 하나를 정해야 한다. 쿠키/localStorage에 저장하거나 새로고침 후 유지된다고 약속하지 않는다.
-- 결과 화면은 전달받은 ID로 `POST /api/comparisons`를 호출한다. 일부 ID가 없을 때 전체 요청을 실패시킬지, 유효한 영화만 반환할지는 팀에서 정해야 한다. 제안은 전체 실패(404)다.
+## 11. 구현 전제 및 완료 체크
 
-## 6. 오류 및 빈 결과 제안
+이 문서로 착수할 endpoint는 `GET /api/movies`, `GET /api/movies/{movieId}`, `GET /api/movies/{movieId}/comments`, `POST /api/movies/{movieId}/fundings`, `POST /api/fundings/{fundingId}/cancel`, `PATCH /api/fundings/{fundingId}/comment`, `POST /api/comparisons`다. 홈과 랭킹은 목록 endpoint를 재사용한다. `/health` 외에는 현재 구현 완료로 간주하지 않는다.
 
-| 상황 | 상태 코드 제안 | 동작 |
-|---|---:|---|
-| 제목 검색 결과 없음 | 200 | `items: []`, `hasMore: false` 반환 |
-| 잘못된 `limit`, `cursor`, 정렬값 | 400 | 안전한 입력 오류 응답 |
-| `movieId`가 정수가 아니거나 0 이하 | 400 | 잘못된 경로 파라미터 |
-| 존재하지 않는 상세 영화 | 404 | 영화 없음 응답 |
-| 비교 ID 개수가 2~5 범위가 아니거나 중복/잘못된 값 포함 | 400 | 비교 입력 검증 오류 |
-| 비교 요청에 존재하지 않는 ID 포함 | 404 | 전체 비교 요청 실패 제안 |
-| 서버 또는 DB 오류 | 500 | 내부 SQL, stack, 비밀정보를 제외한 응답 |
+- [ ] Prisma 모델/실제 DB와 공통 영화 응답 모델 필드가 일치하는지 확인한다. 필드가 없으면 schema/seed를 먼저 맞춘다.
+- [ ] 누적액의 단일 원천을 정하고 목록·상세·비교·랭킹이 같은 값을 반환하게 한다.
+- [ ] 기본 랜덤 조회의 순서를 cursor 페이지 간 유지한다.
+- [ ] DB 및 영화 seed 100편의 데이터 형식이 정리된 필드와 일치하는지 확인한다.
+- [ ] FE가 목록 페이지당 10개를 요청하고, 검색어/정렬이 바뀔 때 cursor를 초기화한다.
+- [x] FE의 번호형 페이지 UI는 메모리의 페이지별 cursor 캐시로 연결한다. 다음 페이지 cursor를 저장하고, 검색어·정렬·페이지 크기가 바뀌면 현재 페이지와 cursor 캐시를 초기화한다. 방문하지 않은 페이지로 바로 이동하는 기능은 지원하지 않는다.
+- [ ] 펀딩 참여 시안의 동의 체크 문구/기록 필요성을 정하고, 필요하면 생성 요청 계약에 포함한다.
+- [x] 펀딩 비밀번호는 영문자와 숫자를 각각 하나 이상 포함한 8~12자로 정하고 생성·취소·코멘트 수정에서 같은 검증을 적용한다.
+- [ ] 빈 코멘트 허용 여부와 공백 정규화 규칙을 결정하고 생성/수정 검증을 맞춘다.
+- [ ] 익명 펀딩 생성 및 비밀번호 검증 endpoint에 적용할 요청 제한/반복 실패 보호를 보안 정책과 맞춘다.
+- [ ] 상세·비교 화면에서 동일한 공통 필드명과 null 처리 규칙을 사용한다.
+- [ ] API 구현 및 통합 검증 시 정상·빈 결과·오류·페이지 경계·비교 ID 검증 시나리오를 확인한다.
 
-정확한 오류 본문 형식과 `400`/`404` 세부 코드는 공통 API 계약에서 확정한다.
-
-## 7. 미확정 사항 및 병목 체크
-
-### 비교 페이지 진행을 막을 수 있는 항목
-
-1. **비교 결과 필드 확정:** 시안에 보이는 항목 중 현재 데이터로 제공 가능한 필드는 제목, 개봉일, 장르, 포스터, 줄거리, 감독, 제작비, 누적액이다. 실제 비교표에 어떤 항목을 표시할지 FE/BE가 맞춰야 한다.
-2. **목표액·달성률 제공:** 최신 백엔드 PR은 `fundingGoal` 컬럼과 응답 필드를 제거했다. 프런트엔드에서 `productionBudget` 숫자를 목표액 숫자로 그대로 사용해 원화로 표시하고, 필요하면 누적액과 비교해 달성률을 계산한다.
-3. **제작비 표시:** `productionBudget` 원본은 USD 숫자이고, 화면 목표액은 같은 숫자를 KRW로 표시한다. 두 항목은 의미와 단위가 다르므로 화면에서 혼동되지 않도록 레이블을 정한다. 환율 변환은 하지 않는다.
-4. **누적액의 단일 기준:** 누적액이 Movie 컬럼인지 Funding 레코드 합계인지, 혹은 캐시인지 최신 백엔드 스키마/구현과 확인해야 한다. 목록, 랭킹, 상세, 비교에서 같은 계산 기준을 사용해야 한다.
-5. **영화 없는 경우와 순서:** 비교 ID 중 하나가 없으면 전체 실패(404), 응답은 요청 순서를 유지하는 안이다. 팀 합의가 필요하다.
-6. **랜덤 cursor:** 기본 랜덤 목록의 순서 고정 전략이 아직 정해지지 않았다. cursor pagination 구현 전에 백엔드가 기준을 정해야 한다.
-7. **제목 검색:** 이 문서는 `q` 파라미터를 제안하지만, 백엔드 PR의 API 명세에는 검색 파라미터가 아직 없다. 비교 선택 화면의 검색과 함께 백엔드 담당자 확인이 필요하다.
-
-### 팀 결정 체크리스트
-
-- [ ] API 담당자가 `/api/comparisons` 경로/POST 방식과 응답 순서를 확정
-- [ ] 비교 결과 화면에서 실제 표시할 필드 및 null 처리 확정
-- [ ] `fundingGoal`과 `achievementRate`를 API에 추가하지 않고 FE 계산값으로 둘지 팀 합의 확인
-- [ ] `productionBudget`이 `null` 또는 0인 영화의 목표액·달성률 화면 처리 확정
-- [ ] `totalFundedAmount`의 원천(스키마 필드/펀딩 합계)과 목록·상세·랭킹 간 일관성 확인
-- [ ] 제목 검색의 부분 일치, 대소문자, 공백 처리 확정
-- [ ] 백엔드가 제목 검색용 `q` 파라미터를 지원할지 확정
-- [ ] `limit` 기본/최대값 및 cursor 동작 확정
-- [ ] 동률 정렬을 `movieId` 오름차순으로 고정할지 확정
-- [ ] 공유 오류 응답 형식 및 API prefix 확정
-
-## 8. 다른 기능 API 상태
-
-펀딩 입력과 코멘트 기능은 서비스 범위/권한/데이터 정책이 확정되지 않았다. 현재 이 문서에서는 계약하지 않는다.
-
-| 기능 | 상태 | 필요한 결정 |
-|---|---|---|
-| 모의 펀딩 등록 | 미확정 | 입력 필드, 익명 등록 방식, 금액 범위·통화, 기록 및 집계 규칙 |
-| 코멘트 목록/수정 | 미확정 | 조회 방식, 수정 권한, 비밀번호 검증, 기간·횟수·정렬 규칙 |
-| AI 비교 요약 | 미확정 | MVP 포함 여부, 데이터 처리, 외부 API/비용 및 장애 처리 |
-
-실제 결제, 결제 정보 수집, 로그인/회원가입 API는 현재 범위에 포함하지 않는다.
+AI 요약 endpoint는 외부 서비스·비용·데이터 처리 정책이 정해지지 않아 범위에서 제외한다. 펀딩·취소·코멘트 계약은 화면의 입력과 확인 흐름을 기준으로 한 구현 제안이다. 저장소 README의 API 구현 상태 표시는 실제 코드와 일치하도록 구현 PR에서 갱신한다.
