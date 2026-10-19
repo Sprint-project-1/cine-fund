@@ -24,8 +24,10 @@ function NavbarContent({ initialQuery }) {
     return (
         <header className="fixed inset-x-0 top-0 z-[1000] flex h-20 items-center justify-center border-b border-[#DDE1E8] bg-white/70 px-4 backdrop-blur-[12px] min-[621px]:px-6 min-[911px]:px-[72px] max-[620px]:justify-between">
             <div className="flex h-20 w-full items-center justify-between">
-                <h1 className="h-11 min-h-11 w-[132px] min-w-[132px]">
-                    <img src="/images/logo.png" alt="CineFund" className="h-full w-full" />
+                <h1 className="h-[50px] min-h-[50px] w-[150px] min-w-[150px]">
+                    <Link to="/" aria-label="CineFund 홈으로 이동" className="block h-full w-full">
+                        <img src="/images/logo.png" alt="CineFund" className="h-full w-full" />
+                    </Link>
                 </h1>
                 <nav className="flex w-max min-w-[239px] gap-[30px] text-base font-medium text-black min-[621px]:max-[910px]:gap-5 max-[620px]:hidden">
                     <Link to="/">영화 탐색</Link>
