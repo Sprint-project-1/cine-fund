@@ -17,8 +17,9 @@ erDiagram
     date release_date
     string tagline
     bigint production_budget
-    string budget_currency
-    bigint funding_goal
+    string original_title
+    string korean_certification
+    json actors
     bigint total_funded_amount
     datetime created_at
     datetime updated_at
@@ -48,9 +49,10 @@ erDiagram
 | Movie.release_date | DATE | NULL 허용 |
 | Movie.genres | JSONB 또는 별도 MovieGenre | TBD; 장르 정규화 여부 결정 |
 | Movie.tagline | TEXT | NULL 허용 |
-| Movie.production_budget | BIGINT | NULL 가능, TMDB 값 원 단위/통화 확인 전 환산 금지 |
-| Movie.budget_currency | CHAR(3) | 외부 값의 통화 보존 방안 TBD |
-| Movie.funding_goal | BIGINT | NULL 가능; 팀이 정한 서비스 통화의 목표액 |
+| Movie.production_budget | BIGINT | NULL 가능; seed에서 TMDB `budget` 숫자를 환율 변환 없이 저장. 현재 화면 규칙은 같은 숫자를 KRW 목표액 표시값으로 사용 |
+| Movie.original_title | TEXT | NULL 가능; TMDB 원제 |
+| Movie.korean_certification | VARCHAR | NULL 가능; 한국 관람 등급 |
+| Movie.actors | JSONB 또는 TEXT[] | 출연진 목록. 실제 Prisma 타입은 seed 구현과 맞춘다 |
 | Movie.total_funded_amount | BIGINT | NOT NULL DEFAULT 0; 초기 적재 시 0. 테스트용 펀딩 기록을 추가하면 합계와 일치하도록 갱신 |
 | Movie.created_at / updated_at | TIMESTAMPTZ | NOT NULL, 기본 현재 시각 |
 | Funding.funding_id | BIGSERIAL | PK |
@@ -58,10 +60,10 @@ erDiagram
 | Funding.nickname | VARCHAR(8) | NOT NULL, trim 후 비어 있지 않음 |
 | Funding.amount | BIGINT | NOT NULL, CHECK(amount > 0), 최소/최대 TBD |
 | Funding.comment | VARCHAR(100) | NOT NULL 또는 빈 코멘트 허용 여부 TBD |
-| Funding.password_hash | TEXT | NOT NULL, 검증 가능한 강한 단방향 해시만 저장 |
+| Funding.password_hash | TEXT | NOT NULL, 영문자와 숫자를 포함하는 8~12자 비밀번호의 검증 가능한 강한 단방향 해시만 저장 |
 | Funding.created_at / updated_at | TIMESTAMPTZ | NOT NULL; 최신순 기준은 created_at, funding_id tie-break |
 
-외부 TMDB 식별자에는 `tmdb_id` 컬럼명을 API/DB에서 사용한다. 목표액과 원본 제작비는 별도 값이다. 통화 변환 정책 확정 전 `funding_goal`을 자동 설정하지 않는다. 초기 seed/import는 고정된 `tmdb_id` 목록을 입력으로 사용하고, 재실행 시 이미 존재하는 영화는 중복 생성하지 않도록 upsert하는 방안을 제안한다.
+외부 TMDB 식별자에는 `tmdb_id` 컬럼명을 API/DB에서 사용한다. 현재 화면 정책은 `production_budget`의 숫자를 환율 계산 없이 동일한 숫자의 KRW 목표액으로 표시하는 것이다. 별도 `funding_goal`은 이 계약에서 사용하지 않는다. 초기 seed/import는 고정된 `tmdb_id` 목록을 입력으로 사용하고, 재실행 시 이미 존재하는 영화는 중복 생성하지 않도록 upsert하는 방안을 제안한다.
 
 ## Prisma 모델 초안
 
@@ -77,8 +79,9 @@ model Movie {
   genres             Json?
   tagline            String?
   productionBudget   BigInt?   @map("production_budget")
-  budgetCurrency     String?   @map("budget_currency") @db.Char(3)
-  fundingGoal        BigInt?   @map("funding_goal")
+  originalTitle      String?   @map("original_title")
+  koreanCertification String?  @map("korean_certification")
+  actors             Json      @default("[]")
   totalFundedAmount  BigInt    @default(0) @map("total_funded_amount")
   createdAt          DateTime  @default(now()) @map("created_at")
   updatedAt          DateTime  @updatedAt @map("updated_at")
@@ -110,9 +113,9 @@ Prisma만으로 모든 CHECK 제약을 표현하기 어려운 버전/기능 차�
 - 원장은 `Funding.amount` 기록이며 `total_funded_amount`는 표시/정렬을 위한 집계값 제안이다. 값은 Funding 합계와 항상 일치해야 한다.
 - 초기 영화 적재 시 `total_funded_amount=0`으로 둔다. 초기 Funding 원장 데이터가 없으면 누적액 0을 의미한다. 정렬/달성률 검증에 필요한 테스트 금액은 개발 전용 Funding fixture/seed로 넣고 실사용 데이터와 분리한다.
 - Funding insert와 집계값 증가를 한 DB 트랜잭션에서 수행하고 동시 요청에서 원자적 증가/잠금을 사용한다. 읽기-계산-쓰기는 lost update를 일으킬 수 있다. 정기 재집계로 원장 합계와 검증하는 방안도 검토한다.
-- 달성률 제안식: `totalFundedAmount / fundingGoal × 100`; 목표액 NULL/0이면 `null`로 응답한다. 표시 반올림과 목표 초과 표기는 TBD.
-- Movie 삭제는 FK 보호를 위해 기본 restrict 제안. Funding 삭제/수정(금액 변경)은 감사·집계 정책 결정 전 허용하지 않는 안을 제안한다. 코멘트 수정은 Funding.comment만 변경한다.
-- 비밀번호 해시는 응답/로그 금지. salt/알고리즘 비용은 사용 라이브러리 검토 후 결정한다.
+- 달성률 계산식: `totalFundedAmount / productionBudget × 100`; `productionBudget`이 NULL/0이면 계산할 수 없다. `productionBudget` 원본 숫자를 목표액의 KRW 표시 숫자로 사용한다.
+- Movie 삭제는 FK 보호를 위해 기본 restrict 제안. 사용자가 비밀번호 확인을 거쳐 모의 펀딩 취소를 요청하면 Funding 행을 삭제하고 같은 트랜잭션에서 누적액을 차감한다. 코멘트 수정은 Funding.comment만 변경한다. 취소 요청과 중복/동시 요청 처리는 API 명세를 따른다.
+- 영문자와 숫자를 포함하는 8~12자 비밀번호는 해시만 저장하고 응답/로그에 포함하지 않는다. salt/알고리즘 비용은 사용 라이브러리 검토 후 결정한다.
 
 ## 팀 개발 환경에서의 DB 동기화 제안
 
