@@ -46,9 +46,9 @@ export default function ComparePage() {
   }
 
   return (
-    <section className="relative left-1/2 mx-auto w-[calc(100vw-2rem)] max-w-[1282px] -translate-x-1/2 pt-6 pb-12 text-[#141c2b] min-[1360px]:left-[calc(50%_-_7px)]">
+    <section className="w-full pt-6 pb-12 text-[#141c2b]">
       <div className="mb-[30px] flex flex-wrap items-end justify-between gap-5">
-        <div className="pl-2">
+        <div>
           <p className="mb-3 text-xs font-bold tracking-wide text-[#037069]">COMPARE</p>
           <h1 className="text-3xl font-bold leading-tight tracking-[-0.04em] min-[621px]:text-4xl">영화 비교</h1>
           <p className="mt-[13px] text-[15px] text-[#697180]">비교할 영화를 2개 이상, 최대 5개까지 선택하세요.</p>
@@ -57,7 +57,7 @@ export default function ComparePage() {
           type="button"
           onClick={() => navigate("/compare-result", { state: { movies: selectedMovies } })}
           disabled={selectedIds.length < 2}
-          className="h-[42px] w-[152px] shrink-0 rounded-xl bg-[#037069] text-sm font-bold text-white transition-colors hover:bg-[#025f59] disabled:cursor-not-allowed disabled:bg-[#a8bfbd] min-[911px]:mr-[18px]"
+          className="h-[42px] w-[152px] shrink-0 rounded-xl bg-[#037069] text-sm font-bold text-white transition-colors hover:bg-[#025f59] disabled:cursor-not-allowed disabled:bg-[#a8bfbd]"
         >
           영화 비교하기
         </button>
