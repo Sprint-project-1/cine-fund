@@ -3,9 +3,9 @@ import Navbar from "../components/Navbar";
 
 export default function LayoutPage() {
     return (
-        <div className="min-h-screen flex flex-col bg-gray-50 text-gray-900">
+        <div className="flex min-h-screen w-full min-w-0 flex-col overflow-x-clip bg-gray-50 text-gray-900">
             <Navbar />
-            <main className="mx-auto w-full max-w-7xl flex-1 px-4 pt-[100px] min-[621px]:px-6 min-[1024px]:px-20">
+            <main className="mx-auto min-h-0 w-full min-w-0 max-w-7xl flex-1 overflow-x-clip px-4 pt-[100px] min-[621px]:px-6 min-[1024px]:px-20">
                 <Outlet />
             </main>
         </div>
