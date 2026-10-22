@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
+import PageHeading from "../components/PageHeading.jsx";
 
 // 백엔드 API와 같은 정렬 키를 사용합니다.
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(
@@ -295,19 +296,12 @@ export default function RankingPage() {
   return (
     <section className="w-full pb-16">
       <div className="mb-[30px] flex flex-wrap items-end justify-between gap-5">
-        <div className="pl-2">
-          <p className="mb-3 text-xs font-bold tracking-wide text-[#037069]">
-            RANKING
-          </p>
-
-          <h1 className="text-3xl font-bold leading-tight tracking-[-0.04em] min-[621px]:text-4xl">
-            펀딩 랭킹
-          </h1>
-
-          <p className="mt-[13px] text-[15px] text-[#697180]">
-            조건별 랭킹을 확인하고, 아래로 스크롤하면 다음 영화가 이어집니다.
-          </p>
-        </div>
+        <PageHeading
+          id="ranking-title"
+          eyebrow="RANKING"
+          title="펀딩 랭킹"
+          description="조건별 랭킹을 확인하고, 아래로 스크롤하면 다음 영화가 이어집니다."
+        />
       </div>
 
       <div className="mb-5 mt-7 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">

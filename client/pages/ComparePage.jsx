@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { Search } from "lucide-react";
+import PageHeading from "../components/PageHeading.jsx";
 
 const movies = [
   { id: 1, title: "제목", director: "홍길동", tags: ["드라마", "공포"] },
@@ -46,13 +47,14 @@ export default function ComparePage() {
   }
 
   return (
-    <section className="w-full pt-6 pb-12 text-[#141c2b]">
+    <section className="w-full pb-12 text-[#141c2b]">
       <div className="mb-[30px] flex flex-wrap items-end justify-between gap-5">
-        <div>
-          <p className="mb-3 text-xs font-bold tracking-wide text-[#037069]">COMPARE</p>
-          <h1 className="text-3xl font-bold leading-tight tracking-[-0.04em] min-[621px]:text-4xl">영화 비교</h1>
-          <p className="mt-[13px] text-[15px] text-[#697180]">비교할 영화를 2개 이상, 최대 5개까지 선택하세요.</p>
-        </div>
+        <PageHeading
+          id="compare-title"
+          eyebrow="COMPARE"
+          title="영화 비교"
+          description="비교할 영화를 2개 이상, 최대 5개까지 선택하세요."
+        />
         <button
           type="button"
           onClick={() => navigate("/compare-result", { state: { movies: selectedMovies } })}

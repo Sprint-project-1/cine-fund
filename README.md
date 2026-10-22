@@ -19,7 +19,7 @@ CineFund는 지정된 영화 100편을 탐색하고, 여러 작품을 비교한 
 
 - 저장소: [Sprint-project-1/cine-fund](https://github.com/Sprint-project-1/cine-fund)
 - Front-end: Vite + React JSX 기반 scaffold가 있으며 React Router를 사용합니다.
-- 영화 탐색, 비교 결과, 랭킹 화면은 예시 데이터 기반 UI가 반영되어 있습니다. 상세와 비교 선택 화면은 placeholder이며, 백엔드/API 연동은 완료되지 않았습니다.
+- 영화 탐색 화면은 백엔드의 영화 목록·Top 3 API를 호출하도록 연결되어 있습니다. API 주소는 `VITE_API_BASE_URL`로 지정할 수 있으며 기본값은 `http://localhost:3000`입니다. 비교 결과와 랭킹 화면은 예시 데이터 기반이고, 상세와 비교 선택 화면은 placeholder입니다. 로컬 연동을 위해 백엔드 서버와 DB를 먼저 실행해야 합니다.
 - 현재 확인한 저장소 트리에는 백엔드 서버, Prisma schema/migration, PostgreSQL 설정 및 seed/import 코드가 없습니다.
 - 문서 초안은 이 저장소의 `main`에 아직 등록되지 않았습니다. 이 문서 묶음은 저장소 담당자 검토용입니다.
 
