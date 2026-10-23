@@ -1,33 +1,18 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 import PageHeading from "../components/PageHeading.jsx";
 
-// 백엔드 API와 같은 정렬 키를 사용합니다.
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(
-  /\/$/,
-  "",
-);
-const SORT_QUERY = {
-  "funding-desc": { sortBy: "amount", order: "desc" },
-  "funding-asc": { sortBy: "amount", order: "asc" },
-  "rate-desc": { sortBy: "achievementRate", order: "desc" },
-  "rate-asc": { sortBy: "achievementRate", order: "asc" },
-};
-
-// 응답: movieId / posterPath / totalFundedAmount / productionBudget
-// 화면: id / posterUrl / fundingAmount / targetAmount
-function toRankingMovie(movie) {
-  return {
-    id: movie.movieId,
-    title: movie.title,
-    director: movie.director ?? "정보 없음",
-    posterUrl: movie.posterPath
-      ? `https://image.tmdb.org/t/p/w185${movie.posterPath}`
-      : null,
-    fundingAmount: movie.totalFundedAmount, // 큰 정수이므로 문자열 유지
-    targetAmount: movie.productionBudget, // null일 수 있음
-  };
-}
+// ==========================================
+// API 연결 전 화면 확인용 샘플 데이터
+// 실제 API가 준비되면 movies prop으로 전달하세요.
+const sampleMovies = Array.from({ length: 30 }, (_, i) => ({
+  id: i + 1,
+  title: `샘플 영화 ${String(i + 1).padStart(2, "0")}`,
+  director: "홍길동",
+  posterUrl: null,
+  fundingAmount: (i + 1) * 1_350_000,
+  targetAmount: 50_000_000 + (i % 6) * 15_000_000,
+}));
 
 const sortOptions = [
   { value: "funding-desc", label: "펀딩 금액 높은 순" },
@@ -36,26 +21,10 @@ const sortOptions = [
   { value: "rate-asc", label: "펀딩 달성률 낮은 순" },
 ];
 
-const money = (value) =>
-  value === null || value === undefined
-    ? "—"
-    : `₩ ${BigInt(value).toLocaleString("ko-KR")}`;
-
-function rateOf(movie) {
-  if (movie.targetAmount === null || BigInt(movie.targetAmount) <= 0n)
-    return null;
-  // 큰 정수는 BigInt로 계산하며 화면에는 소수점 2자리까지 사용
-  return (
-    Number(
-      (BigInt(movie.fundingAmount) * 10000n) / BigInt(movie.targetAmount),
-    ) / 100
-  );
-}
-
-const rateText = (movie) => {
-  const percent = rateOf(movie);
-  return percent === null ? "산정 불가" : `${Math.round(percent)}%`;
-};
+const money = (value) => `₩ ${Number(value || 0).toLocaleString("ko-KR")}`;
+const rateOf = (movie) =>
+  movie.targetAmount > 0 ? (movie.fundingAmount / movie.targetAmount) * 100 : 0;
+const rateText = (movie) => `${Math.round(rateOf(movie))}%`;
 
 function Poster({ movie, className = "" }) {
   return movie.posterUrl ? (
@@ -76,8 +45,7 @@ function Poster({ movie, className = "" }) {
 }
 
 function Progress({ movie }) {
-  const rate = rateOf(movie);
-  const percent = rate === null ? 0 : Math.max(0, Math.min(rate, 100));
+  const percent = Math.max(0, Math.min(rateOf(movie), 100));
   return (
     <div className="min-w-0">
       <strong className="text-sm font-bold text-teal-700">
@@ -87,7 +55,7 @@ function Progress({ movie }) {
         className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-100"
         role="progressbar"
         aria-label={`${movie.title} 펀딩 달성률`}
-        aria-valuenow={rate === null ? undefined : Math.round(percent)}
+        aria-valuenow={Math.round(percent)}
         aria-valuemin={0}
         aria-valuemax={100}
       >
@@ -103,8 +71,7 @@ function Progress({ movie }) {
 function RankingItem({ movie, rank }) {
   return (
     <Link
-      to="/detail" // 현재 App.jsx에 등록된 상세 경로 (상세 담당자가 state.movieId를 읽어야 함)
-      state={{ movieId: movie.id }}
+      to={`/movies/${movie.id}`} // 실제 팀 영화 상세 경로가 다르면 이 부분만 변경
       className="block rounded-2xl border border-gray-200 bg-white p-4 transition hover:border-teal-300 hover:bg-teal-50/30 focus-visible:outline-2 focus-visible:outline-teal-700 lg:rounded-none lg:border-x-0 lg:border-t-0 lg:border-b lg:px-4 lg:py-3"
     >
       {/* 모바일: 카드 형태 */}
@@ -195,60 +162,30 @@ function LoadingSkeleton() {
 }
 
 // ==========================================
-// RankingPage: 실제 백엔드 API + cursor 기반 무한 스크롤
-export default function RankingPage() {
+// 페이지: LayoutPage의 <Outlet /> 위치에 표시됩니다.
+export default function RankingPage({ movies = sampleMovies }) {
   const [sort, setSort] = useState("funding-desc");
   const [menuOpen, setMenuOpen] = useState(false);
-  const [movies, setMovies] = useState([]);
-  const [page, setPage] = useState({ nextCursor: null, hasMore: true });
-  const [requestCursor, setRequestCursor] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [retry, setRetry] = useState(0);
+  const [visibleCount, setVisibleCount] = useState(10);
+  const [isLoading, setIsLoading] = useState(false);
   const menuRef = useRef(null);
   const sentinelRef = useRef(null);
 
-  // 정렬 변경 → 서버에 첫 페이지 요청. 스크롤 → 서버 cursor로 다음 10개 요청.
-  useEffect(() => {
-    const controller = new AbortController();
-    const { sortBy, order } = SORT_QUERY[sort];
-    const params = new URLSearchParams({ limit: "10", sortBy, order });
-    if (requestCursor) params.set("cursor", requestCursor);
+  const sortedMovies = useMemo(() => {
+    // 같은 영화 중복 제외 → 정렬. 모든 정렬에 ID 오름차순 보조 기준 적용
+    const uniqueMovies = [
+      ...new Map(movies.map((movie) => [movie.id, movie])).values(),
+    ];
+    return uniqueMovies.sort((a, b) => {
+      const diff = sort.startsWith("funding")
+        ? a.fundingAmount - b.fundingAmount
+        : rateOf(a) - rateOf(b);
+      return (sort.endsWith("desc") ? -diff : diff) || a.id - b.id;
+    });
+  }, [movies, sort]);
 
-    fetch(`${API_BASE_URL}/api/rankings?${params}`, {
-      signal: controller.signal,
-    })
-      .then(async (response) => {
-        if (!response.ok) throw new Error(`서버 응답 ${response.status}`);
-        return response.json();
-      })
-      .then((data) => {
-        if (!Array.isArray(data.items) || !data.page) {
-          throw new Error("예상한 영화 목록 응답 형식이 아닙니다.");
-        }
-        const incoming = data.items.map(toRankingMovie);
-        setMovies((previous) => {
-          if (!requestCursor) return incoming;
-          // 펀딩액 갱신으로 순위가 이동할 때 같은 영화 중복 노출 방지
-          const knownIds = new Set(previous.map((movie) => movie.id));
-          return [
-            ...previous,
-            ...incoming.filter((movie) => !knownIds.has(movie.id)),
-          ];
-        });
-        setPage(data.page);
-      })
-      .catch((cause) => {
-        if (!controller.signal.aborted) setError(cause.message);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setIsLoading(false);
-      });
-
-    return () => controller.abort(); // 정렬 변경/언마운트 시 이전 요청 취소
-  }, [sort, requestCursor, retry]);
-
-  const hasMore = Boolean(page.hasMore && page.nextCursor);
+  const visibleMovies = sortedMovies.slice(0, visibleCount);
+  const hasMore = visibleCount < sortedMovies.length;
   const activeLabel = sortOptions.find(
     (option) => option.value === sort,
   )?.label;
@@ -269,32 +206,33 @@ export default function RankingPage() {
     };
   }, [menuOpen]);
 
-  // 다음 페이지가 있을 때만 바닥 감지 → nextCursor 요청
   useEffect(() => {
-    if (isLoading || error || !hasMore || !sentinelRef.current) return;
+    if (!hasMore || isLoading || !sentinelRef.current) return;
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsLoading(true); // 다음 페이지 로딩 시작
-          setError(""); // 이전 오류 초기화
-          setRequestCursor(page.nextCursor); // 다음 페이지 요청
-        }
+        if (entry.isIntersecting) setIsLoading(true);
       },
       { rootMargin: "180px" },
     );
     observer.observe(sentinelRef.current);
     return () => observer.disconnect();
-  }, [hasMore, isLoading, error, page.nextCursor]);
+  }, [hasMore, isLoading, visibleCount, sort]);
+
+  useEffect(() => {
+    if (!isLoading) return;
+    // 샘플 데이터라 400ms 로딩 연출. 실제 API 연결 시 요청으로 교체
+    const timer = setTimeout(() => {
+      setVisibleCount((count) => Math.min(count + 10, sortedMovies.length));
+      setIsLoading(false);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [isLoading, sortedMovies.length]);
 
   const handleSort = (nextSort) => {
-    setMenuOpen(false);
-    if (nextSort === sort) return;
-    setMovies([]);
-    setPage({ nextCursor: null, hasMore: true });
-    setRequestCursor(null); // 이전 정렬에서 받은 cursor는 절대 재사용하지 않음
-    setIsLoading(true);
-    setError("");
     setSort(nextSort);
+    setVisibleCount(10);
+    setIsLoading(false);
+    setMenuOpen(false);
   };
 
   return (
@@ -353,11 +291,9 @@ export default function RankingPage() {
           </div>
         </div>
         <p className="text-xs text-gray-500">
-          {movies.length === 0
-            ? isLoading
-              ? "랭킹 불러오는 중..."
-              : "표시할 영화가 없습니다."
-            : `1–${movies.length}위 · ${hasMore ? "계속 스크롤해 더 보기" : "모든 랭킹을 확인했습니다"}`}
+          {sortedMovies.length === 0
+            ? "표시할 영화가 없습니다."
+            : `1–${visibleMovies.length}위 · ${hasMore ? "계속 스크롤해 더 보기" : "모든 랭킹을 확인했습니다"}`}
         </p>
       </div>
 
@@ -370,37 +306,19 @@ export default function RankingPage() {
           <span>달성률</span>
           <span className="sr-only">상세</span>
         </div>
-        {movies.map((movie, index) => (
+        {visibleMovies.map((movie, index) => (
           <RankingItem key={movie.id} movie={movie} rank={index + 1} />
         ))}
-        {movies.length === 0 && !isLoading && !error && (
+        {sortedMovies.length === 0 && (
           <p className="py-16 text-center text-sm text-gray-500">
             아직 등록된 영화가 없습니다.
           </p>
         )}
         {isLoading && <LoadingSkeleton />}
-        {error && (
-          <div role="alert" className="py-6 text-center text-sm text-red-700">
-            랭킹을 불러오지 못했습니다. ({error})
-            <button
-              type="button"
-              className="ml-3 underline"
-              onClick={() => {
-                setIsLoading(true); // 재요청 시작
-                setError(""); // 기존 오류 초기화
-                setRetry((n) => n + 1);
-              }}
-            >
-              다시 시도
-            </button>
-          </div>
-        )}
       </div>
 
-      {hasMore && !error && (
-        <div ref={sentinelRef} className="h-8" aria-hidden="true" />
-      )}
-      {!hasMore && !isLoading && !error && movies.length > 0 && (
+      {hasMore && <div ref={sentinelRef} className="h-8" aria-hidden="true" />}
+      {!hasMore && sortedMovies.length > 0 && (
         <p className="mt-7 text-center text-xs text-gray-500">
           모든 랭킹을 확인했습니다.
         </p>
