@@ -215,9 +215,9 @@ export default function RankingPage() {
     const params = new URLSearchParams({ limit: "10", sortBy, order });
     if (requestCursor) params.set("cursor", requestCursor);
 
-    setIsLoading(true);
-    setError("");
-    fetch(`${API_BASE_URL}/api/movies?${params}`, { signal: controller.signal })
+    fetch(`${API_BASE_URL}/api/rankings?${params}`, {
+      signal: controller.signal,
+    })
       .then(async (response) => {
         if (!response.ok) throw new Error(`서버 응답 ${response.status}`);
         return response.json();
@@ -274,7 +274,11 @@ export default function RankingPage() {
     if (isLoading || error || !hasMore || !sentinelRef.current) return;
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting) setRequestCursor(page.nextCursor);
+        if (entry.isIntersecting) {
+          setIsLoading(true); // 다음 페이지 로딩 시작
+          setError(""); // 이전 오류 초기화
+          setRequestCursor(page.nextCursor); // 다음 페이지 요청
+        }
       },
       { rootMargin: "180px" },
     );
@@ -381,7 +385,11 @@ export default function RankingPage() {
             <button
               type="button"
               className="ml-3 underline"
-              onClick={() => setRetry((n) => n + 1)}
+              onClick={() => {
+                setIsLoading(true); // 재요청 시작
+                setError(""); // 기존 오류 초기화
+                setRetry((n) => n + 1);
+              }}
             >
               다시 시도
             </button>
