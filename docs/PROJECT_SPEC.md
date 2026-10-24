@@ -1,6 +1,6 @@
 # CineFund 프로젝트 개발 명세
 
-> 기준: 기존 기획안 최종 수정 2026-10-08 및 GitHub `main` 현재 상태 점검 · 저장소는 생성되었고 프런트엔드 scaffold가 있으나 기능 구현은 초기 단계다.
+> 기준: 기존 기획안 최종 수정 2026-10-08 및 2026-10-20 저장소 문서 동기화. 프런트엔드는 별도 저장소이며, 이 백엔드 저장소에는 DB·seed·서버 골격이 준비되어 있다. 서비스 API 구현은 시작 전이다.
 
 ## 배경 및 가치
 
@@ -48,7 +48,7 @@
 
 ## 제약 및 외부 의존성
 
-기획에서 React/JSX/HTML/CSS, Node.js, PostgreSQL, Prisma를 정했다. 현재 `main` FE 도구는 Vite, React Router, Tailwind CSS v4, React Compiler, ESLint, pnpm이다. React/JSX scaffold 외 기능은 초기 단계이며 BE/DB는 저장소에 아직 확인되지 않는다. Prisma는 백엔드 ORM이고 Express는 미정이다. TMDB는 지정 100편을 초기 seed/import할 때 호출해 메타데이터를 DB에 저장하며 앱 요청 때 실시간 호출하지 않는 구조를 계획한다. API 키와 초기 적재 실패/갱신 절차를 정해야 한다. 목표액 표시 규칙은 TMDB 제작비 숫자를 환율 변환 없이 동일한 숫자의 KRW로 사용하는 것이다.
+프런트엔드는 별도 `cine-fund` 저장소에서 React/JSX, Vite, React Router, Tailwind CSS, React Compiler, ESLint, pnpm을 사용한다. 이 백엔드 저장소에는 Node.js, Express, Prisma, PostgreSQL 설정과 seed 골격이 있으며, `GET /health` 외 서비스 API는 아직 구현되지 않았다. TMDB는 고정 영화 100편을 선정해 JSON으로 저장하는 단계에 쓰며, DB seed와 앱 요청은 이 JSON/DB를 사용한다. API 키와 초기 적재 실패/갱신 절차를 관리한다. 목표액 표시 규칙은 TMDB 제작비 숫자를 환율 변환 없이 동일한 숫자의 KRW로 사용하는 것이다.
 
 ## 확장 계획
 
@@ -65,7 +65,7 @@
 
 ## 기술 쟁점 분석
 
-저장소 상태 확인: Vite/React JSX 프런트엔드 scaffold와 경로 placeholder가 `main`에 있다. 현재 확인한 트리에는 Node.js 백엔드, Prisma schema/migration, PostgreSQL 실행 설정, TMDB seed/import가 없다. 이는 프로젝트 목표에서 제외된 것이 아니라 아직 착수/등록되지 않은 상태다. 세부 패키지와 실행 명령은 [TECH_STACK](TECH_STACK.md), 화면 경로 비교는 [PAGE_SPEC](PAGE_SPEC.md)을 기준으로 한다.
+저장소 상태 확인: 프런트엔드 scaffold와 백엔드 DB·서버 골격은 서로 다른 저장소에서 관리한다. 백엔드 저장소에는 Prisma schema/migration, PostgreSQL Compose, TMDB 영화 선정/JSON seed가 있으나 영화·비교·펀딩 API는 아직 없다. 세부 실행 명령은 [TECH_STACK](TECH_STACK.md), 화면 경로는 프런트엔드 저장소의 [PAGE_SPEC](PAGE_SPEC.md)을 기준으로 한다.
 
 | 항목 | 현재 상태 / 문제 및 영향 | 권장 해결책 | 합의 |
 |---|---|---|---|
@@ -108,7 +108,7 @@
 - [ ] TMDB seed/import 실패 시 재시도/부분 적재 복구와 갱신 주기/책임
 - [ ] 서버 프레임워크, API prefix/version, 배포 플랫폼 및 도메인/CORS
 - [ ] 현재 scaffold의 `/detail`, `/compare`, `/compare-result` 경로를 기존 기획의 `/{id}`, `/comparison`, `/results`와 어떻게 정렬할지
-- [ ] 현재 저장소에 백엔드도 둘지, 별도 저장소로 분리할지
+- [x] 프런트엔드와 백엔드는 별도 저장소로 관리
 - [ ] pnpm 버전 고정 여부 및 공유 개발환경 실행 방식
 - [ ] 팀원, 담당, 회의/코어타임, 일정, 테스트 도구
 - [ ] `/ranking` 경로 및 정렬 UX 최종 확정

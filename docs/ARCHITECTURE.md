@@ -1,8 +1,8 @@
 # 시스템 아키텍처
 
-> 애플리케이션 구조 초안. Figma에는 회원가입/로그인 화면은 없지만 상세 화면에 비로그인 펀딩 입력 및 코멘트 수정 UI가 있다. 화면 설계와 등록 API/DB 동작 결정은 별개다. 개발 시에는 팀원별 Docker 환경에 독립적인 PostgreSQL을 두고, 공통 schema/migration/seed로 구조를 맞춘다. 운영 DB 구성과 Express는 미확정이다.
+> 구조와 구현 상태를 함께 기록한다. Figma에는 회원가입/로그인 화면은 없지만 상세 화면에 비로그인 펀딩 입력 및 코멘트 수정 UI가 있다. 화면 설계와 등록 API/DB 동작 결정은 별개다. 팀원별 Docker 환경의 PostgreSQL과 공통 schema/migration/seed를 사용한다. 운영 DB 구성은 미정이다.
 
-> 현재 저장소 `main`에는 Vite/React 프런트엔드 scaffold만 확인된다. 아래 백엔드·DB 흐름은 계획 아키텍처이며 구현 현황이 아니다. FE는 `client/`에 있고, 내부 서버/API와 Prisma/DB 설정은 아직 저장소 트리에서 확인되지 않는다.
+> 이 저장소에는 Node.js/Express 서버, Prisma schema와 migration, PostgreSQL Compose 및 영화 JSON seed 골격이 있다. 현재 구현된 HTTP 경로는 `GET /health`뿐이며 영화·비교·펀딩 서비스 API는 미구현이다. 프런트엔드는 별도 `cine-fund` 저장소에서 관리한다.
 
 ## 구성도
 
@@ -21,7 +21,7 @@ flowchart LR
 ## 경계와 데이터 흐름
 
 - React는 화면과 사용자 입력을 담당하며 API를 통해 서버와 통신한다. 브라우저에서 PostgreSQL에 직접 접속하지 않는다.
-- Node 서버는 화면의 조회 API, 입력 검증, 도메인 규칙, 오류 변환을 담당한다. 초기 데이터 적재용 seed/import 작업은 별도 실행 흐름으로 TMDB를 호출한다.
+- Node 서버는 화면의 조회 API, 입력 검증, 도메인 규칙, 오류 변환을 담당하도록 설계한다. 현재는 `GET /health`만 구현되어 있다. 초기 영화 선정은 별도 스크립트가 TMDB를 호출하고, DB seed는 고정 JSON을 읽는다.
 - Prisma는 백엔드에서 PostgreSQL 조회/수정 및 트랜잭션을 수행하는 ORM이다. list/funding은 논리적 데이터 영역이며 두 DB를 뜻하지 않는다.
 - PostgreSQL은 핵심 영화 데이터와 모의 펀딩 기록 관계를 보관하는 구조를 목표로 한다. 구체 테이블/집계 방식은 별도 DB/API 합의 사항이다.
 - TMDB API 키는 Node.js seed/import 실행 환경의 비밀 변수로 보관한다. PostgreSQL 자체가 TMDB를 호출하는 것이 아니라 import 스크립트가 TMDB 응답을 받아 Prisma로 저장한다. 지정 100편 메타데이터는 DB에서 제공하며 앱 화면 요청 때 TMDB를 실시간 호출하지 않는다. 갱신 시점/책임은 TBD다.

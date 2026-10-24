@@ -2,7 +2,7 @@
 
 > 시작일/마감일과 기간은 미제공. 날짜를 추정하지 않고 합의 후 입력한다.
 
-> 저장소 현황: `main`에 프런트엔드 Vite/React scaffold 및 placeholder 라우트가 등록되어 있다. 백엔드·DB·기능 완성으로 간주하지 않는다. 마일스톤은 현재 상태에서 이어지는 작업 계획이다.
+> 저장소 현황: 프런트엔드는 별도 저장소에 scaffold와 화면을 보유하고 있다. 이 백엔드 저장소에는 Express health endpoint, Prisma schema/migration, PostgreSQL Compose 및 JSON seed 골격이 있다. 영화·비교·펀딩 서비스 API와 FE 연동은 미완료다. 마일스톤은 현재 상태에서 이어지는 작업 계획이다.
 
 | 단계 | 시작 | 종료 | 산출물 | 완료 조건 |
 |---|---|---|---|---|

@@ -1,6 +1,6 @@
 # 기술 스택 및 협업 도구
 
-> 현재 구현 상태는 GitHub `main`의 `package.json`, `pnpm-lock.yaml`, `vite.config.js`, `eslint.config.js`를 확인한 결과다. 백엔드/DB 항목은 프로젝트 계획이며 현재 저장소 구현과 구분한다.
+> 이 저장소의 백엔드 설정은 `package.json`, `pnpm-lock.yaml`, `compose.yaml`, Prisma schema 및 migration을 기준으로 기록했다. 프런트엔드 정보는 별도 저장소에서 확인한 기술 구성이다.
 
 ## 현재 저장소에서 확인된 기술
 
@@ -14,11 +14,12 @@
 | 패키지 매니저 | 저장소 적용됨 | pnpm, `pnpm-lock.yaml` 존재 |
 | 린트 | 저장소 적용됨 | ESLint flat config, `pnpm lint`; ESLint React Hooks/Refresh 규칙 포함 |
 | 형식화 | TBD | Prettier는 현재 `package.json`에서 확인되지 않음 |
-| Back-end | 계획 | Node.js; 서버 프레임워크 미정, Express 확정 아님 |
-| ORM / DB | 계획 | Prisma / PostgreSQL; 현재 `main`에 schema/migration 없음 |
-| TMDB | 계획 | 초기 seed/import 작업에서 고정된 영화 100편을 조회해 DB에 저장. 런타임 화면 조회에서 호출하지 않음 |
+| Back-end | 저장소 설정됨 | Node.js (`^22.12.0 || >=24.0.0`), Express 5.3.0; 현재 `GET /health`만 구현 |
+| ORM / DB | 저장소 설정됨 | Prisma 7.10.0 / PostgreSQL 18; schema와 migration 존재 |
+| 패키지 매니저 | 저장소 설정됨 | pnpm 11.26.0 지정, `pnpm-lock.yaml` 존재 |
+| TMDB | seed 준비됨 | 영화 선정 스크립트에서 고정 영화 100편을 선택하고 JSON을 생성; DB seed는 JSON만 사용. 페이지 요청 중 호출하지 않음 |
 
-`package.json`에 기재된 버전 범위는 manifest와 lockfile을 기준으로 설치된다. pnpm의 정확한 버전은 저장소에서 고정되지 않았으므로 팀이 결정할 항목이다. 프런트엔드 React Router 의존성과 페이지 scaffold가 존재하지만, 서비스 기능과 최종 URL 계약은 아직 확정/완료되지 않았다.
+백엔드의 서비스 API는 아직 구현되지 않았다. 프런트엔드 기술 세부와 라우트는 별도 `cine-fund` 저장소를 기준으로 하며, 이 문서에서는 백엔드 실행 설정과 혼동하지 않는다.
 
 ### 저장소 설정 확인이 필요한 항목
 
@@ -27,9 +28,9 @@
 ## 개발 환경 및 협업
 
 - 저장소: [Sprint-project-1/cine-fund](https://github.com/Sprint-project-1/cine-fund), 기본 브랜치 `main` 확인.
-- 실행: `pnpm install`, `pnpm dev`; 확인된 검사 스크립트는 `pnpm lint`, 빌드는 `pnpm build`.
-- 저장소 루트가 현재 프런트엔드 앱 루트다. 향후 백엔드를 같은 저장소에 둘지 별도 저장소로 둘지는 TBD.
-- PostgreSQL은 팀원별 Docker 로컬 인스턴스 사용을 제안한다. 공통 Prisma schema/migration/seed가 DB 구조를 맞추고 각자의 데이터는 로컬에 둔다. Docker Compose 도입, DB 버전과 실행 명령은 TBD.
+- 실행/검증 스크립트는 `README.md`와 `package.json` 참조: `pnpm dev`, `pnpm test`, `pnpm test:db`, `pnpm db:up`, `pnpm db:migrate`, `pnpm db:seed`.
+- 프런트엔드는 별도 [cine-fund 저장소](https://github.com/Sprint-project-1/cine-fund)에서 관리한다.
+- PostgreSQL은 팀원별 Docker 로컬 인스턴스를 사용한다. 공통 Prisma schema/migration/seed가 구조를 맞추고 실제 데이터는 각자 로컬에 둔다.
 - GitHub Issue/PR로 작업·리뷰를 관리한다. 프로젝트 보드와 소통 채널(Discord 등)은 팀 합의가 필요하다.
 - 외부 DB 호스팅, FE/BE 배포 플랫폼과 도메인은 후보 조사 후 결정한다.
 

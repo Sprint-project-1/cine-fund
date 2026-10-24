@@ -41,7 +41,7 @@ server/
 prisma/
 ```
 
-현재 FE 파일은 저장소 루트의 `client/` 아래에 있으며 `App.jsx`, `components/`, `pages/`, `index.css`, `main.jsx`가 확인된다. 현재는 단일 저장소이고 백엔드 디렉터리는 없다. 향후 BE를 같은 저장소에 둘지 별도 저장소로 운영할지는 미정이다.
+프런트엔드 파일은 별도 `Sprint-project-1/cine-fund` 저장소에서 관리한다. 이 저장소는 Node.js/Express 백엔드이며, JavaScript ESM과 현재 코드 구조에 맞춰 작성한다. 서버 코드 규칙은 이 저장소의 실제 디렉터리와 lint 설정을 기준으로 한다.
 
 ## ESLint / Prettier
 
