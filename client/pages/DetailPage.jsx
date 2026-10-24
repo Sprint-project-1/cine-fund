@@ -5,6 +5,28 @@ import SkeletonBlock from "../components/SkeletonBlock.jsx";
 import { cancelFunding, createFunding, fetchComments, fetchMovie, updateFundingComment } from "../api/movies.js";
 
 const money = (value) => value == null ? "—" : `₩ ${BigInt(value).toLocaleString("ko-KR")}`;
+const MAX_FUNDING_AMOUNT = 9223372036854775807n;
+
+function isValidFundingPassword(password) {
+  const length = Array.from(password).length;
+  return length >= 8 && length <= 12 && /[A-Za-z]/.test(password) && /[0-9]/.test(password);
+}
+
+function fundingValidationMessage({ amount, nickname, comment, password, consent }) {
+  const normalizedAmount = amount.trim();
+  if (!/^\d+$/.test(normalizedAmount)) return "펀딩 금액은 1원 이상의 정수로 입력해 주세요.";
+  const numericAmount = BigInt(normalizedAmount);
+  if (numericAmount < 1n || numericAmount > MAX_FUNDING_AMOUNT) {
+    return "펀딩 금액은 1원 이상 PostgreSQL BIGINT 최댓값 이하로 입력해 주세요.";
+  }
+  const nicknameLength = Array.from(nickname.trim()).length;
+  if (nicknameLength < 1 || nicknameLength > 8) return "닉네임은 공백을 제외하고 1~8자로 입력해 주세요.";
+  if (Array.from(comment).length > 100) return "코멘트는 100자 이내로 입력해 주세요.";
+  if (!isValidFundingPassword(password)) return "비밀번호는 8~12자이며 영문자와 숫자를 각각 하나 이상 포함해야 합니다.";
+  if (!consent) return "펀딩 및 코멘트 작성 내용을 확인해 주세요.";
+  return "";
+}
+
 const percent = (funded, goal) => {
   if (funded == null || goal == null || BigInt(goal) <= 0n) return null;
   return Number((BigInt(funded) * 100n) / BigInt(goal));
@@ -87,10 +109,17 @@ export default function DetailPage() {
   const [error, setError] = useState("");
   const [commentError, setCommentError] = useState("");
   const [notice, setNotice] = useState("");
+  const [fundingError, setFundingError] = useState("");
   const [refresh, setRefresh] = useState(0);
   const [funding, setFunding] = useState({ nickname: "", amount: "", comment: "", password: "", consent: false });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeAction, setActiveAction] = useState(null);
+
+  function updateFundingField(field, value) {
+    setFunding((current) => ({ ...current, [field]: value }));
+    setFundingError("");
+    setNotice("");
+  }
 
   useEffect(() => {
     if (!movieId) return undefined;
@@ -127,8 +156,14 @@ export default function DetailPage() {
 
   async function submitFunding(event) {
     event.preventDefault();
-    if (!funding.consent) return;
+    const validationMessage = fundingValidationMessage(funding);
+    if (validationMessage) {
+      setFundingError(validationMessage);
+      setNotice("");
+      return;
+    }
     setIsSubmitting(true);
+    setFundingError("");
     setNotice("");
     try {
       const result = await createFunding(movieId, { amount: funding.amount.trim(), nickname: funding.nickname.trim(), comment: funding.comment, password: funding.password });
@@ -136,7 +171,9 @@ export default function DetailPage() {
       setFunding({ nickname: "", amount: "", comment: "", password: "", consent: false });
       setNotice("모의 펀딩이 등록되었습니다.");
       setRefresh((n) => n + 1);
-    } catch (cause) { setNotice(cause.message || "모의 펀딩을 등록하지 못했습니다."); }
+    } catch (cause) {
+      setFundingError(cause.message || "모의 펀딩을 등록하지 못했습니다.");
+    }
     finally { setIsSubmitting(false); }
   }
 
@@ -170,7 +207,7 @@ export default function DetailPage() {
       </section>
       <section className="grid min-w-0 grid-cols-1 gap-4 min-[900px]:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
         <div className="min-w-0 rounded-lg border border-[#E6EAF0] bg-white p-4 sm:p-6" aria-busy={isLoadingComments}><h2 className="mb-2 font-bold">펀딩 코멘트</h2>{isLoadingComments && comments.length === 0 && <div role="status" aria-label="코멘트를 불러오는 중" className="space-y-4 py-4">{Array.from({ length: 3 }, (_, index) => <div key={index} className="flex gap-3 border-t border-[#E6EAF0] pt-4"><SkeletonBlock className="size-10 shrink-0 rounded-full" /><div className="flex-1 space-y-2"><SkeletonBlock className="h-4 w-1/3" /><SkeletonBlock className="h-4 w-full" /></div></div>)}</div>}{commentError && <p role="alert" className="py-4 text-sm text-red-700">{commentError}</p>}{!isLoadingComments && comments.length === 0 && !commentError && <p className="py-6 text-sm text-gray-500">등록된 코멘트가 없습니다.</p>}<FundingComment comments={comments} onEdit={(item) => setActiveAction({ type: "edit", fundingId: item.fundingId, comment: item.comment })} onCancel={(item) => setActiveAction({ type: "cancel", fundingId: item.fundingId })} />{isLoadingComments && comments.length > 0 && <div role="status" aria-label="코멘트를 더 불러오는 중" className="space-y-3 py-4">{Array.from({ length: 2 }, (_, index) => <SkeletonBlock key={index} className="h-16 w-full rounded-xl" />)}</div>}{hasMore && <button type="button" onClick={loadMoreComments} disabled={isLoadingComments} className="mt-4 w-full rounded-lg border px-4 py-2 text-sm font-semibold disabled:opacity-60">{isLoadingComments ? "불러오는 중…" : "코멘트 더 보기"}</button>}</div>
-        <form onSubmit={submitFunding} className="h-min min-w-0 rounded-lg border border-[#E6EAF0] bg-white p-4 sm:p-6"><h2 className="mb-2 font-bold">펀딩 참여</h2><p className="mb-4 text-xs text-gray-500">실제 결제가 없는 모의 펀딩입니다.</p><label className="my-2 block text-sm font-bold" htmlFor="nickname">닉네임</label><input className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm" id="nickname" type="text" required maxLength={8} value={funding.nickname} onChange={(e) => setFunding({ ...funding, nickname: e.target.value })} placeholder="최대 8글자" /><label className="my-2 block text-sm font-bold" htmlFor="fund-amount">펀딩 금액</label><input className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm" id="fund-amount" type="number" min="1" step="1" required value={funding.amount} onChange={(e) => setFunding({ ...funding, amount: e.target.value })} placeholder="금액 입력" /><label className="my-2 block text-sm font-bold" htmlFor="fund-comment">코멘트</label><textarea className="h-20 w-full resize-y rounded-lg border border-gray-300 px-4 py-2 text-sm" id="fund-comment" maxLength={100} value={funding.comment} onChange={(e) => setFunding({ ...funding, comment: e.target.value })} placeholder="최대 100글자" /><label className="my-2 block text-sm font-bold" htmlFor="comment-password">비밀번호</label><input className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm" id="comment-password" type="password" minLength={8} maxLength={12} required value={funding.password} onChange={(e) => setFunding({ ...funding, password: e.target.value })} placeholder="영문과 숫자 포함, 8~12자" /><p className="py-2 text-xs text-gray-500">코멘트 수정 및 모의 펀딩 취소 시 확인에 사용합니다.</p><div className="mt-2 flex items-start gap-2"><input className="mt-0.5 size-4 shrink-0" id="confirm" type="checkbox" required checked={funding.consent} onChange={(e) => setFunding({ ...funding, consent: e.target.checked })} /><label htmlFor="confirm" className="text-xs leading-5 text-gray-600">펀딩 및 코멘트 작성 내용을 확인했습니다.</label></div>{notice && <p role="status" className="mt-3 text-sm text-primary">{notice}</p>}<button type="submit" disabled={!funding.consent || isSubmitting} className="mx-auto mt-4 block rounded-lg bg-primary px-10 py-2 text-sm font-bold text-white disabled:bg-gray-300">{isSubmitting ? "등록 중…" : "모의 펀딩 완료"}</button></form>
+        <form onSubmit={submitFunding} className="h-min min-w-0 rounded-lg border border-[#E6EAF0] bg-white p-4 sm:p-6"><h2 className="mb-2 font-bold">펀딩 참여</h2><p className="mb-4 text-xs text-gray-500">실제 결제가 없는 모의 펀딩입니다.</p><label className="my-2 block text-sm font-bold" htmlFor="nickname">닉네임</label><input className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm" id="nickname" type="text" required maxLength={8} value={funding.nickname} onChange={(e) => updateFundingField("nickname", e.target.value)} placeholder="최대 8글자" /><label className="my-2 block text-sm font-bold" htmlFor="fund-amount">펀딩 금액</label><input className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm" id="fund-amount" type="number" min="1" step="1" required value={funding.amount} onChange={(e) => updateFundingField("amount", e.target.value)} placeholder="금액 입력" /><label className="my-2 block text-sm font-bold" htmlFor="fund-comment">코멘트</label><textarea className="h-20 w-full resize-y rounded-lg border border-gray-300 px-4 py-2 text-sm" id="fund-comment" maxLength={100} value={funding.comment} onChange={(e) => updateFundingField("comment", e.target.value)} placeholder="최대 100글자" /><label className="my-2 block text-sm font-bold" htmlFor="comment-password">비밀번호</label><input className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm" id="comment-password" type="password" minLength={8} maxLength={12} pattern="(?=.*[A-Za-z])(?=.*[0-9]).{8,12}" title="8~12자로 입력하고 영문자와 숫자를 각각 하나 이상 포함해 주세요." aria-describedby="password-help" required value={funding.password} onChange={(e) => updateFundingField("password", e.target.value)} placeholder="영문과 숫자 포함, 8~12자" /><p id="password-help" className={`py-2 text-xs ${funding.password && !isValidFundingPassword(funding.password) ? "text-red-700" : "text-gray-500"}`}>비밀번호는 영문자와 숫자를 각각 하나 이상 포함한 8~12자여야 합니다. 코멘트 수정 및 모의 펀딩 취소 시에도 사용합니다.</p><div className="mt-2 flex items-start gap-2"><input className="mt-0.5 size-4 shrink-0" id="confirm" type="checkbox" required checked={funding.consent} onChange={(e) => updateFundingField("consent", e.target.checked)} /><label htmlFor="confirm" className="text-xs leading-5 text-gray-600">펀딩 및 코멘트 작성 내용을 확인했습니다.</label></div>{fundingError && <p role="alert" className="mt-3 text-sm text-red-700">{fundingError}</p>}{notice && <p role="status" className="mt-3 text-sm text-primary">{notice}</p>}<button type="submit" disabled={isSubmitting} className="mx-auto mt-4 block rounded-lg bg-primary px-10 py-2 text-sm font-bold text-white disabled:bg-gray-300">{isSubmitting ? "등록 중…" : "모의 펀딩 완료"}</button></form>
       </section>
       {activeAction && <PasswordDialog title={activeAction.type === "cancel" ? "모의 펀딩 취소" : "코멘트 수정"} onClose={() => setActiveAction(null)} onSubmit={performAction}>{activeAction.type === "cancel" ? <p className="mt-4 text-sm text-gray-600">해당 모의 펀딩 기록을 취소할까요? 실제 결제나 환불은 발생하지 않습니다.</p> : <><label htmlFor="edit-comment" className="mt-4 block text-sm font-semibold">코멘트</label><textarea id="edit-comment" maxLength={100} required value={activeAction.comment} onChange={(event) => setActiveAction({ ...activeAction, comment: event.target.value })} className="mt-2 h-24 w-full rounded-lg border border-gray-300 p-3" /></>}</PasswordDialog>}
     </div>
