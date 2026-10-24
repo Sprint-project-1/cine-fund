@@ -12,10 +12,10 @@
 - 브라우저는 백엔드 API와 통신한다. 프런트엔드에서 PostgreSQL에 직접 접속하지 않는다.
 - 여기서 백엔드 API는 CineFund 자체의 화면-서버 API다. TMDB 외부 API는 초기 seed/import에서 지정 영화 100편을 조회해 DB에 넣는 데 사용하고, 앱의 사용자 요청마다 호출하지 않는다.
 - 지정 영화 100편, 기본 랜덤 목록, 무한 스크롤, 2~5편 비교가 현재 기획의 중심이다.
-- GitHub 저장소 `Sprint-project-1/cine-fund`의 현재 `main`에는 Vite/React JSX 프런트엔드 scaffold가 있다. FE 코드는 `client/` 아래에 있으며 페이지 컴포넌트는 placeholder다. 백엔드/Prisma/PostgreSQL 설정은 현재 확인한 `main` 트리에 없다.
+- GitHub 저장소 `Sprint-project-1/cine-fund`는 프런트엔드 저장소다. FE 코드는 `client/` 아래에 있고 홈/검색, 상세, 비교 선택/결과, 랭킹 화면이 내부 API 호출 코드를 사용한다. API 호출 코드의 존재는 별도 백엔드 저장소의 endpoint 구현 완료를 뜻하지 않는다. 이 저장소에는 백엔드/Prisma/PostgreSQL 설정이 없다.
 - 저장소 패키지 매니저는 pnpm이다 (`pnpm-lock.yaml`, `pnpm-workspace.yaml` 확인). 확인된 프런트 명령은 `pnpm dev`, `pnpm build`, `pnpm lint`, `pnpm preview`다. 정확한 pnpm 버전은 저장소에서 고정되지 않았다.
 - 현재 Vite 설정에는 React plugin, Tailwind CSS Vite plugin, React Compiler Babel preset이 연결되어 있고, ESLint flat config가 존재한다. Prettier/TypeScript는 현재 적용된 구성으로 간주하지 않는다.
-- 현재 FE 라우트는 `/`, `/detail`, `/compare`, `/compare-result`, `/ranking`이다. 기획/Figma 경로와 다른 부분은 `docs/PAGE_SPEC.md`에서 관리하고 합의 후 갱신한다.
+- 현재 FE 라우트는 `/`, `/detail/:movieId` (이전 `/detail` 링크 호환), `/compare`, `/compare-result`, `/ranking`이다. 기획/Figma 경로와 다른 부분은 `docs/PAGE_SPEC.md`에서 관리하고 합의 후 갱신한다.
 
 ## 먼저 읽을 문서
 
@@ -49,7 +49,7 @@
 - Prisma는 백엔드 ORM으로만 사용하고 한 PostgreSQL 데이터베이스의 테이블 관계를 우선한다. `list DB`와 `funding DB`를 별도 서버 두 개로 가정하지 않는다.
 - 로컬 개발자는 각자 PostgreSQL 인스턴스를 사용한다. 이는 공통 schema를 각자 적용하는 구조이며, 각자 별도로 스키마를 설계하거나 로컬 DB 데이터를 Git에 공유하는 방식이 아니다. 통합/운영용 공용 DB는 별도 결정한다.
 - API 필드 이름은 `docs/API_SPEC.md`와 `docs/DATABASE_SCHEMA.md`를 기준으로 일관되게 유지한다. 계약 변경 시 FE/BE 문서를 함께 갱신한다.
-- 금액은 부동소수점으로 저장하지 않는다. 통화와 제작비→목표액 변환 규칙은 팀 결정 전 추정하지 않는다.
+- 금액은 부동소수점으로 저장하지 않는다. TMDB USD 제작비를 목표액 기준으로 삼고, DB/API의 `productionBudget`과 모의 펀딩 금액은 KRW 정수로 다룬다. USD→KRW 환율 숫자와 원 단위 반올림은 TBD이며 임의로 정하지 않는다.
 - 페이지네이션은 안정적인 정렬을 고려한다. 랜덤 목록을 요청마다 다시 섞어 중복/누락을 만들지 않는다.
 - TMDB ID 100개 목록은 공유 파일로 고정하고 seed/import가 그 ID를 기준으로 영화 정보를 적재한다. 팀원이 seed할 때마다 다른 인기순 100편을 선택하지 않는다. 영화 메타데이터 갱신은 별도 작업이며 실행 시점/책임을 합의한다.
 - 외부 API, 라이브러리, 배포 플랫폼의 기능/정책은 확인하기 전 단정하지 않는다. TMDB API 키는 seed/import 실행 환경의 서버 비밀정보로 관리하고 프런트엔드에 노출하지 않는다.

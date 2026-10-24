@@ -1,12 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import PageHeading from "../components/PageHeading.jsx";
+import { fetchMovies } from "../api/movies.js";
 
-// 백엔드 API와 같은 정렬 키를 사용합니다.
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(
-  /\/$/,
-  "",
-);
 const SORT_QUERY = {
   "funding-desc": { sortBy: "amount", order: "desc" },
   "funding-asc": { sortBy: "amount", order: "asc" },
@@ -103,8 +99,7 @@ function Progress({ movie }) {
 function RankingItem({ movie, rank }) {
   return (
     <Link
-      to="/detail" // 현재 App.jsx에 등록된 상세 경로 (상세 담당자가 state.movieId를 읽어야 함)
-      state={{ movieId: movie.id }}
+      to={`/detail/${movie.id}`}
       className="block rounded-2xl border border-gray-200 bg-white p-4 transition hover:border-teal-300 hover:bg-teal-50/30 focus-visible:outline-2 focus-visible:outline-teal-700 lg:rounded-none lg:border-x-0 lg:border-t-0 lg:border-b lg:px-4 lg:py-3"
     >
       {/* 모바일: 카드 형태 */}
@@ -212,16 +207,9 @@ export default function RankingPage() {
   useEffect(() => {
     const controller = new AbortController();
     const { sortBy, order } = SORT_QUERY[sort];
-    const params = new URLSearchParams({ limit: "10", sortBy, order });
-    if (requestCursor) params.set("cursor", requestCursor);
-
     setIsLoading(true);
     setError("");
-    fetch(`${API_BASE_URL}/api/movies?${params}`, { signal: controller.signal })
-      .then(async (response) => {
-        if (!response.ok) throw new Error(`서버 응답 ${response.status}`);
-        return response.json();
-      })
+    fetchMovies({ limit: 10, sortBy, order, cursor: requestCursor || undefined }, { signal: controller.signal })
       .then((data) => {
         if (!Array.isArray(data.items) || !data.page) {
           throw new Error("예상한 영화 목록 응답 형식이 아닙니다.");

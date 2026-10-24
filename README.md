@@ -15,13 +15,14 @@ CineFund는 지정된 영화 100편을 탐색하고, 여러 작품을 비교한 
 
 기능 UI와 서버 저장 정책은 별개입니다. 펀딩 등록·수정의 요청/검증 방식은 API 담당자와 합의 전까지 확정하지 않았습니다. TMDB는 준비 단계에서 영화 데이터를 가져와 DB에 저장하는 데 사용하며, 화면 요청 때 실시간 호출하는 구조가 아닙니다.
 
-## 현재 저장소 상태 (`main` 확인 기준)
+## 저장소 구성 및 현재 FE 상태
 
 - 저장소: [Sprint-project-1/cine-fund](https://github.com/Sprint-project-1/cine-fund)
 - Front-end: Vite + React JSX 기반 scaffold가 있으며 React Router를 사용합니다.
-- 영화 탐색 화면은 백엔드의 영화 목록·Top 3 API를 호출하도록 연결되어 있습니다. API 주소는 `VITE_API_BASE_URL`로 지정할 수 있으며 기본값은 `http://localhost:3000`입니다. 비교 결과와 랭킹 화면은 예시 데이터 기반이고, 상세와 비교 선택 화면은 placeholder입니다. 로컬 연동을 위해 백엔드 서버와 DB를 먼저 실행해야 합니다.
-- 현재 확인한 저장소 트리에는 백엔드 서버, Prisma schema/migration, PostgreSQL 설정 및 seed/import 코드가 없습니다.
-- 문서 초안은 이 저장소의 `main`에 아직 등록되지 않았습니다. 이 문서 묶음은 저장소 담당자 검토용입니다.
+- 영화 탐색/Top 3, 헤더 검색, 비교 후보/결과, 랭킹, 상세 화면이 있으며 각 화면은 CineFund API 호출 코드를 사용합니다. 로컬 Vite 개발 서버는 기본적으로 `/api`를 `http://localhost:3000`에 프록시합니다. 별도 API origin을 쓸 때만 `VITE_API_BASE_URL`에 지정합니다.
+- 백엔드와 DB는 별도 저장소에서 관리합니다. 이 공용 문서 묶음의 API 계약과 백엔드 구현 상태는 FE 코드 구현과 구분해 확인해야 합니다. 백엔드가 API를 제공하지 않으면 FE는 오류/재시도 상태를 표시합니다.
+- 현재 로컬 백엔드 코드에는 `GET /health`만 있고 `/api/movies` 및 화면용 API는 없습니다. 따라서 프록시 설정만으로 영화 데이터가 나오지 않으며, 백엔드 endpoint를 구현하고 서버를 실행해야 합니다.
+- 이 문서 묶음은 FE/BE가 함께 사용하는 요구사항·API·데이터 계약입니다. 저장소별 구현 상태는 대상 저장소를 명시합니다.
 
 ## 기술 스택 및 실행
 
@@ -34,7 +35,7 @@ CineFund는 지정된 영화 100편을 탐색하고, 여러 작품을 비교한 
 | React 최적화 | React Compiler preset이 Vite 설정에 적용됨 |
 | 코드 검사 | ESLint flat config, `pnpm lint` |
 | 패키지 매니저 | pnpm, 저장소에 `pnpm-lock.yaml` 존재 |
-| BE/DB | Node.js 백엔드, PostgreSQL, Prisma는 프로젝트 계획. 아직 현재 `main` 구현에 없음 |
+| BE/DB | Node.js 백엔드, PostgreSQL, Prisma는 별도 백엔드 저장소에서 관리 |
 
 설치 및 실행:
 
@@ -56,26 +57,26 @@ pnpm preview  # 빌드 결과 미리보기
 
 ## 화면 및 경로
 
-현재 `client/App.jsx`의 구현 경로는 아래와 같습니다. 기존 기획/Figma의 경로와 다른 부분이 있어 API·라우팅 합의가 필요합니다.
+현재 `client/App.jsx`의 구현 경로와 기존 기획 경로는 아래와 같습니다.
 
-| 현재 `main` 경로 | 화면 | 기존 기획 경로 |
+| 현재 FE 경로 | 화면 | 기획/Figma 경로 |
 |---|---|---|
 | `/` | 영화 탐색 | `/` |
-| `/detail` | 영화 상세 (현재 ID 파라미터 없음) | `/{id}` |
+| `/detail/:movieId` | 영화 상세 | `/{id}` |
 | `/compare` | 영화 비교 선택 | `/comparison` |
 | `/compare-result` | 비교 결과 | `/results` |
 | `/ranking` | 펀딩 랭킹 | `/ranking` |
 
-영화 탐색 화면은 현재 페이지 버튼으로 목록을 이동하고, 랭킹 화면은 예시 데이터를 스크롤에 따라 추가 표시합니다. 랭킹의 추가 표시는 서버 API 연결 전 화면 동작이며 실제 cursor 페이지네이션은 구현되지 않았습니다. 상세와 비교 선택 화면은 placeholder입니다. 상세 주소를 `/movies/:movieId` 등으로 바꿀지 포함해 최종 경로는 팀이 결정해야 합니다. 상세 UI와 페이지별 동작은 [PAGE_SPEC](docs/PAGE_SPEC.md)을 참고하세요.
+영화 탐색은 번호형 페이지 UI와 메모리 cursor 캐시를 사용하고, 랭킹은 cursor API 기반 무한 스크롤을 사용합니다. 상세는 `/detail/:movieId`에서 상세·코멘트·익명 모의 펀딩 API를 호출합니다. 비교 결과는 라우터 메모리 state의 영화 ID로 비교 API를 호출합니다. 페이지별 요청과 상태는 [PAGE_SPEC](docs/PAGE_SPEC.md), API 계약은 [API_SPEC](docs/API_SPEC.md)을 참고하세요.
 
 ## 데이터 흐름 계획
 
-계획 구조는 `React UI → CineFund 백엔드 API → Prisma → PostgreSQL`입니다. TMDB는 준비 단계의 Node.js seed/import 작업이 고정된 영화 ID를 기준으로 조회해 PostgreSQL에 적재합니다. PostgreSQL이 TMDB를 직접 호출하지 않으며, 브라우저가 DB에 직접 접속하지 않습니다. 백엔드/API/DB는 아직 저장소에 구현되어 있지 않습니다.
+구조는 `React UI → CineFund 백엔드 API → Prisma → PostgreSQL`입니다. TMDB는 준비 단계의 Node.js seed/import 작업이 고정된 영화 ID를 기준으로 조회해 PostgreSQL에 적재합니다. PostgreSQL이 TMDB를 직접 호출하지 않으며, 브라우저가 DB에 직접 접속하지 않습니다. 백엔드 API 실행/구현 상태는 백엔드 저장소에서 관리합니다.
 
 ## 팀 및 진행 상태
 
 - 팀원과 역할: [ROLE_ASSIGNMENT](docs/ROLE_ASSIGNMENT.md)에서 작성
-- 진행 상태: 저장소 생성 및 프런트엔드 scaffold 확인, 기능 구현 전/초기 단계
+- 진행 상태: FE 주요 화면 및 내부 API 호출 코드 구현. 백엔드 endpoint 실제 구현/통합 검증은 별도 백엔드 저장소 기준으로 확인 필요
 - Figma: [CineFund 디자인](https://www.figma.com/design/bYyl4ZsROpGqfC7nvNWyTj/시네펀딩-|-영화-탐색·펀딩-UX?node-id=2-6&t=o8qJAmEkbxW6vFaj-1)
 
 ## 문서

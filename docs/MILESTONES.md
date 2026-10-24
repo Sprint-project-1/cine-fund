@@ -2,15 +2,15 @@
 
 > 시작일/마감일과 기간은 미제공. 날짜를 추정하지 않고 합의 후 입력한다.
 
-> 저장소 현황: 프런트엔드는 별도 저장소에 scaffold와 화면을 보유하고 있다. 이 백엔드 저장소에는 Express health endpoint, Prisma schema/migration, PostgreSQL Compose 및 JSON seed 골격이 있다. 영화·비교·펀딩 서비스 API와 FE 연동은 미완료다. 마일스톤은 현재 상태에서 이어지는 작업 계획이다.
+> 저장소 현황: FE와 BE는 별도 저장소다. 프런트엔드에는 페이지 UI 및 영화/비교/랭킹/상세 API 호출 코드가 있다. 백엔드 서비스 API 구현 및 실제 FE/BE 통합 상태는 백엔드 코드와 통합 실행으로 확인한다. 마일스톤은 구현 코드가 아니라 완료 검증 기준을 추적한다.
 
 | 단계 | 시작 | 종료 | 산출물 | 완료 조건 |
 |---|---|---|---|---|
 | M0 기획 및 설계 | TBD | TBD | 요구사항, 결정 기록, API/DB/화면 명세 | 핵심 TBD 담당자와 결론이 기록됨 |
 | M1 개발 환경 구축 | TBD | TBD | 현재 FE scaffold 실행 절차 확인, 백엔드 구조, Docker 기반 로컬 PostgreSQL, Prisma migration/seed, 고정 TMDB ID 목록 및 import 절차, GitHub 규칙 | 팀원이 pnpm으로 현재 FE를 실행하고, 이후 같은 schema와 고정 영화 100편을 각자 로컬 DB에 재현 가능 |
 | M2 DB 및 API | TBD | TBD | Prisma schema/seed/import, CineFund 내부 P0 API | TMDB 메타데이터를 사전 적재하고 내부 목록/상세/비교/모의 펀딩 API가 DB를 제공; 앱 요청에서 TMDB 실시간 호출 없음 |
-| M3 FE 구현 | TBD | TBD | Figma의 데스크톱·태블릿·모바일 기준 목록/상세/비교/결과/랭킹 화면 | 시안의 검색·펀딩·코멘트 수정·AI UI를 반영하되, 미확정 API 기능은 계약 합의 후 연결. 로딩/빈/오류 상태 포함 |
-| M4 FE/BE 연동 | TBD | TBD | 통합 앱 | 주요 흐름이 실제 API로 연결됨 |
+| M3 FE 구현 | TBD | TBD | Figma의 데스크톱·태블릿·모바일 기준 목록/상세/비교/결과/랭킹 화면 | 현재 화면/API 호출 코드를 시안 및 계약에 맞춰 다듬고, 로딩/빈/오류 상태와 반응형을 확인 |
+| M4 FE/BE 연동 | TBD | TBD | 통합 앱 | 백엔드 API를 실제 실행하고 FE 주요 흐름이 정상·오류 응답 모두에서 연결됨 |
 | M5 테스트 | TBD | TBD | 테스트 결과와 결함 목록 | P0 시나리오 통과, 남은 위험 기록 |
 | M6 오류 수정 | TBD | TBD | 수정 PR 및 회귀 결과 | 차단 결함 해결/잔여 결함 합의 |
 | M7 배포 | TBD | TBD | 배포 URL, 환경변수/운영 가이드 | 공개 환경에서 핵심 흐름 확인 |

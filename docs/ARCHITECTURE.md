@@ -2,7 +2,7 @@
 
 > 구조와 구현 상태를 함께 기록한다. Figma에는 회원가입/로그인 화면은 없지만 상세 화면에 비로그인 펀딩 입력 및 코멘트 수정 UI가 있다. 화면 설계와 등록 API/DB 동작 결정은 별개다. 팀원별 Docker 환경의 PostgreSQL과 공통 schema/migration/seed를 사용한다. 운영 DB 구성은 미정이다.
 
-> 이 저장소에는 Node.js/Express 서버, Prisma schema와 migration, PostgreSQL Compose 및 영화 JSON seed 골격이 있다. 현재 구현된 HTTP 경로는 `GET /health`뿐이며 영화·비교·펀딩 서비스 API는 미구현이다. 프런트엔드는 별도 `cine-fund` 저장소에서 관리한다.
+> 백엔드 저장소 상태: Node.js/Express 서버, Prisma schema와 migration, PostgreSQL Compose 및 영화 JSON seed 골격이 있다. 해당 저장소에서 구현된 HTTP 경로는 `GET /health`뿐이며 영화·비교·펀딩 서비스 API는 미구현이다. 프런트엔드는 별도 `cine-fund` 저장소에서 관리하며, 이 문서는 두 저장소의 공용 아키텍처 명세다.
 
 ## 구성도
 
@@ -33,8 +33,8 @@ flowchart LR
 ### 영화 조회
 
 1. React가 `GET /api/movies?limit=...&cursor=...` 호출
-2. 서버가 입력 검증 후 Prisma로 영화 정보를 조회하고, 모의 펀딩 누적액/달성률을 함께 조회 (필드·계산 계약 TBD)
-3. 영화 메타데이터는 사전 seed/import로 DB에 적재된 값을 사용한다. TMDB에 없는 값은 NULL/기본 표시 정책을 따른다.
+2. 서버가 입력 검증 후 Prisma로 영화 정보를 조회하고, KRW 목표액(`productionBudget`)과 모의 펀딩 누적액을 반환한다. 목표액은 seed/import에서 환산해 저장하며, 달성률은 공통 API 명세에 따라 계산한다.
+3. 영화 메타데이터는 사전 seed/import로 DB에 적재된 값을 사용한다. TMDB에 없는 값은 NULL/기본 표시 정책을 따른다. TMDB USD 제작비 원본은 JSON에 두고, DB `productionBudget`에는 합의된 환율로 환산한 KRW 정수를 저장한다. 환율·반올림이 확정되기 전 실제 변환값은 정하지 않는다.
 4. API 표준 JSON 반환, React는 로딩/빈/오류/목록 상태를 표시
 
 기본 랜덤 순서가 페이지 요청마다 변하면 누락/중복이 생길 수 있다. 제안은 첫 목록의 순서를 고정하고 cursor와 함께 유지하는 것이며, 쿠키/localStorage를 쓰지 않는 제약 아래 stateless seed 또는 서버 저장 방식 중 팀 결정이 필요하다.

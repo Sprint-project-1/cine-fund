@@ -193,7 +193,7 @@ export default function HomePage() {
   }, []);
 
   function openMovie(movie) {
-    navigate("/detail", { state: { movie } });
+    navigate(`/detail/${movie.movieId}`, { state: { movie } });
   }
 
   async function changePage(page) {

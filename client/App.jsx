@@ -11,6 +11,7 @@ function App() {
         <Routes>
             <Route element={<LayoutPage />}>
                 <Route path="/" element={<HomePage />} />
+                <Route path="/detail/:movieId" element={<DetailPage />} />
                 <Route path="/detail" element={<DetailPage />} />
                 <Route path="/compare" element={<ComparePage />} />
                 <Route path="/compare-result" element={<CompareResultPage />} />
