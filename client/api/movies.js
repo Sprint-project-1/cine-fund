@@ -24,7 +24,11 @@ async function request(path, { signal, ...options } = {}) {
         ? "백엔드에서 이 API 경로를 찾을 수 없습니다. endpoint 구현 여부를 확인해 주세요."
         : `요청을 완료하지 못했습니다. (${response.status})`
     );
-    throw new Error(message);
+    const error = new Error(message);
+    error.status = response.status;
+    error.code = body?.error?.code;
+    error.apiMessage = body?.error?.message;
+    throw error;
   }
   return body;
 }
@@ -92,13 +96,24 @@ export async function updateFundingComment(fundingId, password, comment) {
 }
 
 export async function fetchComparison(movieIds, { signal } = {}) {
-  const body = await request("/api/comparisons", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ movieIds }),
-    signal,
-  });
-  if (!Array.isArray(body?.items) || body.items.length !== movieIds.length) {
+  let body;
+  try {
+    body = await request("/api/comparisons", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ movieIds }),
+      signal,
+    });
+  } catch (error) {
+    if (error.status === 400) {
+      throw new Error(error.apiMessage || "비교 요청이 올바르지 않습니다. 영화를 다시 선택해 주세요.", { cause: error });
+    }
+    if (error.status === 404 && error.code === "MOVIE_NOT_FOUND") {
+      throw new Error(error.apiMessage || "선택한 영화 중 일부를 찾을 수 없습니다. 영화를 다시 선택해 주세요.", { cause: error });
+    }
+    throw error;
+  }
+  if (!Array.isArray(body?.items) || (body.items.length > 0 && body.items.length !== movieIds.length)) {
     throw new Error("영화 비교 응답 형식이 올바르지 않습니다.");
   }
   return body.items;

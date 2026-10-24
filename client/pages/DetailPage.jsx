@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useParams } from "react-router";
 import FundingComment from "../components/FundingComment.jsx";
+import SkeletonBlock from "../components/SkeletonBlock.jsx";
 import { cancelFunding, createFunding, fetchComments, fetchMovie, updateFundingComment } from "../api/movies.js";
 
 const money = (value) => value == null ? "—" : `₩ ${BigInt(value).toLocaleString("ko-KR")}`;
@@ -31,6 +32,44 @@ function PasswordDialog({ title, onClose, onSubmit, children }) {
         {error && <p role="alert" className="mt-3 text-sm text-red-700">{error}</p>}
         <div className="mt-6 flex justify-end gap-2"><button type="button" onClick={onClose} className="rounded-lg border px-4 py-2">취소</button><button disabled={busy} type="submit" className="rounded-lg bg-primary px-4 py-2 font-bold text-white disabled:opacity-60">{busy ? "처리 중…" : "확인"}</button></div>
       </form>
+    </div>
+  );
+}
+
+function DetailSkeleton() {
+  return (
+    <div className="min-w-0 pb-12" role="status" aria-label="영화 정보를 불러오는 중">
+      <section className="my-6 flex min-w-0 flex-col gap-6 min-[768px]:flex-row">
+        <SkeletonBlock className="aspect-[2/3] w-full max-w-[320px] self-center rounded-lg min-[768px]:shrink-0" />
+        <div className="flex min-w-0 flex-1 flex-col gap-4 min-[768px]:pt-4">
+          <div className="space-y-3">
+            <SkeletonBlock className="h-4 w-28" />
+            <SkeletonBlock className="h-9 w-3/4" />
+            <SkeletonBlock className="h-4 w-1/2" />
+            <div className="flex gap-2"><SkeletonBlock className="h-7 w-16 rounded-full" /><SkeletonBlock className="h-7 w-20 rounded-full" /></div>
+            <SkeletonBlock className="h-4 w-2/5" />
+          </div>
+          <div className="space-y-2">
+            <SkeletonBlock className="h-4 w-full" />
+            <SkeletonBlock className="h-4 w-full" />
+            <SkeletonBlock className="h-4 w-4/5" />
+          </div>
+          <div className="mt-auto rounded-lg border border-[#E6EAF0] bg-white p-4">
+            <SkeletonBlock className="mb-5 h-5 w-32" />
+            <div className="grid grid-cols-2 gap-4 min-[520px]:grid-cols-3">
+              {Array.from({ length: 3 }, (_, index) => <div key={index} className="space-y-2"><SkeletonBlock className="h-4 w-20" /><SkeletonBlock className="h-6 w-28" /></div>)}
+            </div>
+            <SkeletonBlock className="mt-4 h-3 w-full rounded-full" />
+          </div>
+        </div>
+      </section>
+      <section className="grid min-w-0 grid-cols-1 gap-4 min-[900px]:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
+        <div className="rounded-lg border border-[#E6EAF0] bg-white p-4 sm:p-6">
+          <SkeletonBlock className="mb-5 h-5 w-28" />
+          {Array.from({ length: 3 }, (_, index) => <div key={index} className="flex gap-3 border-t border-[#E6EAF0] py-4"><SkeletonBlock className="size-10 shrink-0 rounded-full" /><div className="flex-1 space-y-2"><SkeletonBlock className="h-4 w-1/3" /><SkeletonBlock className="h-4 w-full" /></div></div>)}
+        </div>
+        <div className="h-[420px] rounded-lg border border-[#E6EAF0] bg-white p-4 sm:p-6"><SkeletonBlock className="h-5 w-24" /></div>
+      </section>
     </div>
   );
 }
@@ -115,7 +154,7 @@ export default function DetailPage() {
   }
 
   if (!movieId) return <section className="py-16 text-center"><p className="text-gray-600">영화 식별자가 없습니다.</p><Link to="/" className="mt-4 inline-block text-primary">영화 목록으로</Link></section>;
-  if (isLoading) return <p className="py-16 text-center text-gray-600" role="status">영화 정보를 불러오는 중입니다.</p>;
+  if (isLoading) return <DetailSkeleton />;
   if (error || !movie) return <section className="py-16 text-center"><p role="alert" className="text-gray-600">{error || "영화를 찾을 수 없습니다."}</p><button type="button" onClick={() => setRefresh((n) => n + 1)} className="mt-4 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white">다시 시도</button><p><Link to="/" className="mt-4 inline-block text-primary">영화 목록으로</Link></p></section>;
 
   const achievement = percent(movie.totalFundedAmount, movie.productionBudget);
@@ -130,7 +169,7 @@ export default function DetailPage() {
         </div>
       </section>
       <section className="grid min-w-0 grid-cols-1 gap-4 min-[900px]:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
-        <div className="min-w-0 rounded-lg border border-[#E6EAF0] bg-white p-4 sm:p-6"><h2 className="mb-2 font-bold">펀딩 코멘트</h2>{isLoadingComments && comments.length === 0 && <p role="status" className="py-6 text-sm text-gray-500">코멘트를 불러오는 중입니다.</p>}{commentError && <p role="alert" className="py-4 text-sm text-red-700">{commentError}</p>}{!isLoadingComments && comments.length === 0 && !commentError && <p className="py-6 text-sm text-gray-500">등록된 코멘트가 없습니다.</p>}<FundingComment comments={comments} onEdit={(item) => setActiveAction({ type: "edit", fundingId: item.fundingId, comment: item.comment })} onCancel={(item) => setActiveAction({ type: "cancel", fundingId: item.fundingId })} />{hasMore && <button type="button" onClick={loadMoreComments} disabled={isLoadingComments} className="mt-4 w-full rounded-lg border px-4 py-2 text-sm font-semibold disabled:opacity-60">{isLoadingComments ? "불러오는 중…" : "코멘트 더 보기"}</button>}</div>
+        <div className="min-w-0 rounded-lg border border-[#E6EAF0] bg-white p-4 sm:p-6" aria-busy={isLoadingComments}><h2 className="mb-2 font-bold">펀딩 코멘트</h2>{isLoadingComments && comments.length === 0 && <div role="status" aria-label="코멘트를 불러오는 중" className="space-y-4 py-4">{Array.from({ length: 3 }, (_, index) => <div key={index} className="flex gap-3 border-t border-[#E6EAF0] pt-4"><SkeletonBlock className="size-10 shrink-0 rounded-full" /><div className="flex-1 space-y-2"><SkeletonBlock className="h-4 w-1/3" /><SkeletonBlock className="h-4 w-full" /></div></div>)}</div>}{commentError && <p role="alert" className="py-4 text-sm text-red-700">{commentError}</p>}{!isLoadingComments && comments.length === 0 && !commentError && <p className="py-6 text-sm text-gray-500">등록된 코멘트가 없습니다.</p>}<FundingComment comments={comments} onEdit={(item) => setActiveAction({ type: "edit", fundingId: item.fundingId, comment: item.comment })} onCancel={(item) => setActiveAction({ type: "cancel", fundingId: item.fundingId })} />{isLoadingComments && comments.length > 0 && <div role="status" aria-label="코멘트를 더 불러오는 중" className="space-y-3 py-4">{Array.from({ length: 2 }, (_, index) => <SkeletonBlock key={index} className="h-16 w-full rounded-xl" />)}</div>}{hasMore && <button type="button" onClick={loadMoreComments} disabled={isLoadingComments} className="mt-4 w-full rounded-lg border px-4 py-2 text-sm font-semibold disabled:opacity-60">{isLoadingComments ? "불러오는 중…" : "코멘트 더 보기"}</button>}</div>
         <form onSubmit={submitFunding} className="h-min min-w-0 rounded-lg border border-[#E6EAF0] bg-white p-4 sm:p-6"><h2 className="mb-2 font-bold">펀딩 참여</h2><p className="mb-4 text-xs text-gray-500">실제 결제가 없는 모의 펀딩입니다.</p><label className="my-2 block text-sm font-bold" htmlFor="nickname">닉네임</label><input className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm" id="nickname" type="text" required maxLength={8} value={funding.nickname} onChange={(e) => setFunding({ ...funding, nickname: e.target.value })} placeholder="최대 8글자" /><label className="my-2 block text-sm font-bold" htmlFor="fund-amount">펀딩 금액</label><input className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm" id="fund-amount" type="number" min="1" step="1" required value={funding.amount} onChange={(e) => setFunding({ ...funding, amount: e.target.value })} placeholder="금액 입력" /><label className="my-2 block text-sm font-bold" htmlFor="fund-comment">코멘트</label><textarea className="h-20 w-full resize-y rounded-lg border border-gray-300 px-4 py-2 text-sm" id="fund-comment" maxLength={100} value={funding.comment} onChange={(e) => setFunding({ ...funding, comment: e.target.value })} placeholder="최대 100글자" /><label className="my-2 block text-sm font-bold" htmlFor="comment-password">비밀번호</label><input className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm" id="comment-password" type="password" minLength={8} maxLength={12} required value={funding.password} onChange={(e) => setFunding({ ...funding, password: e.target.value })} placeholder="영문과 숫자 포함, 8~12자" /><p className="py-2 text-xs text-gray-500">코멘트 수정 및 모의 펀딩 취소 시 확인에 사용합니다.</p><div className="mt-2 flex items-start gap-2"><input className="mt-0.5 size-4 shrink-0" id="confirm" type="checkbox" required checked={funding.consent} onChange={(e) => setFunding({ ...funding, consent: e.target.checked })} /><label htmlFor="confirm" className="text-xs leading-5 text-gray-600">펀딩 및 코멘트 작성 내용을 확인했습니다.</label></div>{notice && <p role="status" className="mt-3 text-sm text-primary">{notice}</p>}<button type="submit" disabled={!funding.consent || isSubmitting} className="mx-auto mt-4 block rounded-lg bg-primary px-10 py-2 text-sm font-bold text-white disabled:bg-gray-300">{isSubmitting ? "등록 중…" : "모의 펀딩 완료"}</button></form>
       </section>
       {activeAction && <PasswordDialog title={activeAction.type === "cancel" ? "모의 펀딩 취소" : "코멘트 수정"} onClose={() => setActiveAction(null)} onSubmit={performAction}>{activeAction.type === "cancel" ? <p className="mt-4 text-sm text-gray-600">해당 모의 펀딩 기록을 취소할까요? 실제 결제나 환불은 발생하지 않습니다.</p> : <><label htmlFor="edit-comment" className="mt-4 block text-sm font-semibold">코멘트</label><textarea id="edit-comment" maxLength={100} required value={activeAction.comment} onChange={(event) => setActiveAction({ ...activeAction, comment: event.target.value })} className="mt-2 h-24 w-full rounded-lg border border-gray-300 p-3" /></>}</PasswordDialog>}

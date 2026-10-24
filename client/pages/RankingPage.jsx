@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import PageHeading from "../components/PageHeading.jsx";
 import { fetchMovies } from "../api/movies.js";
+import SkeletonBlock from "../components/SkeletonBlock.jsx";
 
 const SORT_QUERY = {
   "funding-desc": { sortBy: "amount", order: "desc" },
@@ -174,17 +175,24 @@ function RankingItem({ movie, rank }) {
 
 function LoadingSkeleton() {
   return (
-    <div
-      className="space-y-3 py-3"
-      role="status"
-      aria-label="다음 랭킹 불러오는 중"
-    >
-      {Array.from({ length: 2 }, (_, i) => (
-        <div key={i} className="h-24 animate-pulse rounded-xl bg-gray-100" />
+    <div className="space-y-3 py-3" role="status" aria-label="랭킹 불러오는 중">
+      {Array.from({ length: 2 }, (_, index) => (
+        <div key={index} className="rounded-2xl border border-gray-200 bg-white p-4 lg:rounded-none lg:border-x-0 lg:border-t-0 lg:px-4 lg:py-3">
+          <div className="flex items-start gap-3">
+            <SkeletonBlock className="mt-1 h-5 w-7" />
+            <SkeletonBlock className="h-[84px] w-[56px] shrink-0 rounded-lg" />
+            <div className="flex-1 space-y-3 pt-1"><SkeletonBlock className="h-4 w-3/4" /><SkeletonBlock className="h-3 w-1/2" /></div>
+            <SkeletonBlock className="h-7 w-14 rounded-lg" />
+          </div>
+          <div className="mt-4 grid grid-cols-3 gap-3 border-t border-gray-100 pt-3 lg:hidden">
+            {Array.from({ length: 3 }, (_, column) => <div key={column} className="space-y-2"><SkeletonBlock className="h-3 w-16" /><SkeletonBlock className="h-4 w-full" /></div>)}
+          </div>
+          <div className="mt-3 hidden grid-cols-[145px_145px_125px] items-center gap-3 lg:grid">
+            <SkeletonBlock className="h-4 w-24" /><SkeletonBlock className="h-4 w-24" /><SkeletonBlock className="h-4 w-20" />
+          </div>
+        </div>
       ))}
-      <p className="text-center text-xs text-gray-500">
-        다음 랭킹 불러오는 중...
-      </p>
+      <p className="sr-only">랭킹 목록을 불러오는 중입니다.</p>
     </div>
   );
 }
