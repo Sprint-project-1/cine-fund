@@ -1,8 +1,8 @@
 # 시스템 아키텍처
 
-> 구조와 구현 상태를 함께 기록한다. Figma에는 회원가입/로그인 화면은 없지만 상세 화면에 비로그인 펀딩 입력 및 코멘트 수정 UI가 있다. 화면 설계와 등록 API/DB 동작 결정은 별개다. 팀원별 Docker 환경의 PostgreSQL과 공통 schema/migration/seed를 사용한다. 운영 DB 구성은 미정이다.
+> 구조와 구현 상태를 함께 기록한다. Figma에는 회원가입/로그인 화면은 없지만 상세 화면에 비로그인 펀딩 입력 및 코멘트 수정 UI가 있다. 화면 설계와 등록 API/DB 동작 결정은 별개다. 로컬 개발은 팀원별 Docker PostgreSQL을 사용하고, 운영 API/DB는 Render에 배포되어 있다. 운영 FE origin은 아직 정해지지 않아 백엔드 CORS allowlist에 추가되지 않았다.
 
-> 백엔드 저장소 상태: Node.js/Express 서버, Prisma schema와 migration, PostgreSQL Compose 및 영화 JSON seed 골격이 있다. 해당 저장소에서 구현된 HTTP 경로는 `GET /health`뿐이며 영화·비교·펀딩 서비스 API는 미구현이다. 프런트엔드는 별도 `cine-fund` 저장소에서 관리하며, 이 문서는 두 저장소의 공용 아키텍처 명세다.
+> 2026-10-26 코드 기준: 별도 백엔드 저장소에는 Express 서비스 API, Prisma schema/migration, PostgreSQL Compose 및 고정 영화 JSON seed가 구현되어 있다. FE 랭킹 화면은 전용 `/api/rankings`를 호출한다. 운영 FE 빌드의 기본 API origin은 Render 서비스이며, 실제 브라우저 통합 검증과 금액 단위 정책은 별도 확인 대상이다. 이 문서는 두 저장소의 공용 아키텍처 명세다.
 
 ## 구성도
 
@@ -21,7 +21,7 @@ flowchart LR
 ## 경계와 데이터 흐름
 
 - React는 화면과 사용자 입력을 담당하며 API를 통해 서버와 통신한다. 브라우저에서 PostgreSQL에 직접 접속하지 않는다.
-- Node 서버는 화면의 조회 API, 입력 검증, 도메인 규칙, 오류 변환을 담당하도록 설계한다. 현재는 `GET /health`만 구현되어 있다. 초기 영화 선정은 별도 스크립트가 TMDB를 호출하고, DB seed는 고정 JSON을 읽는다.
+- Node 서버는 화면의 조회 API, 입력 검증, 도메인 규칙, 오류 변환을 담당한다. `/health`, 영화 조회/랭킹/비교, 펀딩 및 코멘트 API 코드가 구현되어 있다. 초기 영화 선정은 별도 스크립트가 TMDB를 호출하고, DB seed는 고정 JSON을 읽는다.
 - Prisma는 백엔드에서 PostgreSQL 조회/수정 및 트랜잭션을 수행하는 ORM이다. list/funding은 논리적 데이터 영역이며 두 DB를 뜻하지 않는다.
 - PostgreSQL은 핵심 영화 데이터와 모의 펀딩 기록 관계를 보관하는 구조를 목표로 한다. 구체 테이블/집계 방식은 별도 DB/API 합의 사항이다.
 - TMDB API 키는 Node.js seed/import 실행 환경의 비밀 변수로 보관한다. PostgreSQL 자체가 TMDB를 호출하는 것이 아니라 import 스크립트가 TMDB 응답을 받아 Prisma로 저장한다. 지정 100편 메타데이터는 DB에서 제공하며 앱 화면 요청 때 TMDB를 실시간 호출하지 않는다. 갱신 시점/책임은 TBD다.
@@ -33,8 +33,8 @@ flowchart LR
 ### 영화 조회
 
 1. React가 `GET /api/movies?limit=...&cursor=...` 호출
-2. 서버가 입력 검증 후 Prisma로 영화 정보를 조회하고, KRW 목표액(`productionBudget`)과 모의 펀딩 누적액을 반환한다. 목표액은 seed/import에서 환산해 저장하며, 달성률은 공통 API 명세에 따라 계산한다.
-3. 영화 메타데이터는 사전 seed/import로 DB에 적재된 값을 사용한다. TMDB에 없는 값은 NULL/기본 표시 정책을 따른다. TMDB USD 제작비 원본은 JSON에 두고, DB `productionBudget`에는 합의된 환율로 환산한 KRW 정수를 저장한다. 환율·반올림이 확정되기 전 실제 변환값은 정하지 않는다.
+2. 서버가 입력 검증 후 Prisma로 영화 정보를 조회하고 `productionBudget` 및 모의 펀딩 누적액을 반환한다. 현재 `productionBudget`은 TMDB USD 원본 숫자를 환산 없이 저장·반환한다.
+3. FE는 `productionBudget`을 원화 목표액으로 표시하고 달성률을 계산한다. API 값(USD)과 화면 표기(KRW)의 통화 불일치는 배포 전 해결해야 한다.
 4. API 표준 JSON 반환, React는 로딩/빈/오류/목록 상태를 표시
 
 기본 랜덤 순서가 페이지 요청마다 변하면 누락/중복이 생길 수 있다. 제안은 첫 목록의 순서를 고정하고 cursor와 함께 유지하는 것이며, 쿠키/localStorage를 쓰지 않는 제약 아래 stateless seed 또는 서버 저장 방식 중 팀 결정이 필요하다.
@@ -53,10 +53,10 @@ flowchart LR
 1. 클라이언트가 `fundingId`, 비밀번호, 새 코멘트로 PATCH
 2. 서버가 기록을 조회하고 해시와 비밀번호 비교
 3. 일치할 때에만 코멘트를 갱신. 틀리면 일반화된 401/403 오류 응답
-4. 시도 횟수 제한과 비밀번호 해시 알고리즘/비용은 구현 전 결정
+4. 현재 요청 횟수 제한은 구현되어 있지 않으며 공개 전 추가해야 한다. 비밀번호는 Node.js scrypt 해시로 저장한다.
 
 ## 오류 및 환경변수
 
-TMDB seed/import 작업의 timeout/실패, DB 오류, 입력 오류를 구분해 처리한다. import 실패 시 일부 데이터만 성공한 상태를 정리하는 방식은 트랜잭션/재실행 안전성 설계로 보완한다. 앱 API 오류는 내부 stack trace와 비밀을 응답하지 않고 서버 로그에도 비밀번호를 남기지 않는다. 환경변수 예시: `DATABASE_URL`, `TMDB_API_KEY`(seed/import 실행용), `PORT`, `CLIENT_ORIGIN`(이름은 제안). `.env`는 커밋하지 않고 `.env.example`에는 빈 placeholder만 둔다. 배포 환경의 secret manager/환경변수 설정은 플랫폼 결정 후 문서화한다.
+TMDB seed/import 작업의 timeout/실패, DB 오류, 입력 오류를 구분해 처리한다. 앱 API 오류는 내부 stack trace와 비밀을 응답하지 않고 서버 로그에도 비밀번호를 남기지 않는다. 백엔드 환경변수는 `DATABASE_URL`, `TMDB_API_KEY` 또는 `TMDB_API_TOKEN`(영화 재선정용), `PORT`, `CORS_ORIGINS`다. 운영 API 주소는 `https://cinefund-backend.onrender.com`; 운영 FE 빌드는 이 주소를 기본 사용하며, 다른 API origin을 지정할 때만 `VITE_API_BASE_URL`을 설정한다. 배포된 FE origin은 백엔드 `CORS_ORIGINS`에 추가해야 한다. `.env`는 커밋하지 않는다.
 
 로컬 Docker 설정에서는 DB 연결 주소가 실행 위치에 따라 달라진다. 백엔드도 컨테이너 안에서 실행하면 Compose 서비스 이름을 호스트로 사용하고, 백엔드가 호스트에서 실행되면 공개한 로컬 포트를 사용한다. 실제 변수값은 환경별로 설정하며 팀에 비밀키나 개인 `.env` 파일을 공유하지 않는다. TMDB 요청은 준비 단계의 서버 측 seed/import에서만 수행하고 `TMDB_API_KEY`를 프런트엔드 컨테이너/번들에 넣지 않는다.

@@ -13,15 +13,15 @@ CineFund는 지정된 영화 100편을 탐색하고, 여러 작품을 비교한 
 - 2~5편 영화 비교
 - 비로그인 모의 펀딩 UI와 코멘트 조회·비밀번호 수정 UI
 
-기능 UI와 서버 저장 정책은 별개입니다. 펀딩 등록·수정의 요청/검증 방식은 API 담당자와 합의 전까지 확정하지 않았습니다. TMDB는 준비 단계에서 영화 데이터를 가져와 DB에 저장하는 데 사용하며, 화면 요청 때 실시간 호출하는 구조가 아닙니다.
+FE 화면과 백엔드 API 코드는 구현되어 있습니다. 랭킹 화면은 BE의 전용 `/api/rankings`를 호출하며, 운영 빌드의 기본 API 주소는 Render 백엔드입니다. 실제 브라우저 통합 검증과 제작비 통화 기준은 별도로 확인해야 합니다. TMDB는 초기 데이터 준비에만 사용하며 사용자 화면 요청 때 실시간 호출하지 않습니다.
 
 ## 저장소 구성 및 현재 FE 상태
 
 - 저장소: [Sprint-project-1/cine-fund](https://github.com/Sprint-project-1/cine-fund)
 - Front-end: Vite + React JSX 기반 scaffold가 있으며 React Router를 사용합니다.
-- 영화 탐색/Top 3, 헤더 검색, 비교 후보/결과, 랭킹, 상세 화면이 있으며 각 화면은 CineFund API 호출 코드를 사용합니다. 로컬 Vite 개발 서버는 기본적으로 `/api`를 `http://localhost:3000`에 프록시합니다. 별도 API origin을 쓸 때만 `VITE_API_BASE_URL`에 지정합니다.
-- 백엔드와 DB는 별도 저장소에서 관리합니다. 이 공용 문서 묶음의 API 계약과 백엔드 구현 상태는 FE 코드 구현과 구분해 확인해야 합니다. 백엔드가 API를 제공하지 않으면 FE는 오류/재시도 상태를 표시합니다.
-- 현재 로컬 백엔드 코드에는 `GET /health`만 있고 `/api/movies` 및 화면용 API는 없습니다. 따라서 프록시 설정만으로 영화 데이터가 나오지 않으며, 백엔드 endpoint를 구현하고 서버를 실행해야 합니다.
+- 영화 탐색/Top 3, 헤더 검색, 비교 후보/결과, 랭킹, 상세 화면이 있으며 각 화면은 CineFund API 호출 코드를 사용합니다. 랭킹은 `GET /api/rankings` 전용 endpoint를 사용합니다. 로컬 Vite 개발 서버는 `/api`를 `http://localhost:3000`에 프록시합니다.
+- 백엔드와 DB는 별도 저장소에서 관리합니다. 운영 백엔드는 `https://cinefund-backend.onrender.com`에 배포되어 있으며, 운영 빌드에서 `VITE_API_BASE_URL`을 비우면 이 주소를 기본 사용합니다. 다른 API 호스트를 쓰면 환경변수로 덮어쓸 수 있습니다. 백엔드 `CORS_ORIGINS`에는 배포된 FE의 정확한 origin을 추가해야 합니다. 현재 운영 FE origin은 미정입니다.
+- 백엔드에는 `/api/movies`, `/api/rankings`, `/api/comparisons`, 펀딩·코멘트 endpoint가 구현되어 있습니다. API 코드 구현과 DB/HTTP 및 브라우저 통합 검증 상태는 구분해 관리합니다.
 - 이 문서 묶음은 FE/BE가 함께 사용하는 요구사항·API·데이터 계약입니다. 저장소별 구현 상태는 대상 저장소를 명시합니다.
 
 ## 기술 스택 및 실행
@@ -76,7 +76,7 @@ pnpm preview  # 빌드 결과 미리보기
 ## 팀 및 진행 상태
 
 - 팀원과 역할: [ROLE_ASSIGNMENT](docs/ROLE_ASSIGNMENT.md)에서 작성
-- 진행 상태: FE 주요 화면 및 내부 API 호출 코드 구현. 백엔드 endpoint 실제 구현/통합 검증은 별도 백엔드 저장소 기준으로 확인 필요
+- 진행 상태: FE 화면/API 호출 코드와 BE endpoint 연결 완료. 제작비 통화 기준 정리, DB/HTTP 및 브라우저 통합 검증은 남아 있음
 - Figma: [CineFund 디자인](https://www.figma.com/design/bYyl4ZsROpGqfC7nvNWyTj/시네펀딩-|-영화-탐색·펀딩-UX?node-id=2-6&t=o8qJAmEkbxW6vFaj-1)
 
 ## 문서

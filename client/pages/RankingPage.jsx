@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import PageHeading from "../components/PageHeading.jsx";
-import { fetchMovies } from "../api/movies.js";
+import { fetchRankings } from "../api/movies.js";
 import SkeletonBlock from "../components/SkeletonBlock.jsx";
 
 const SORT_QUERY = {
@@ -217,7 +217,7 @@ export default function RankingPage() {
     const { sortBy, order } = SORT_QUERY[sort];
     setIsLoading(true);
     setError("");
-    fetchMovies({ limit: 10, sortBy, order, cursor: requestCursor || undefined }, { signal: controller.signal })
+    fetchRankings({ limit: 10, sortBy, order, cursor: requestCursor || undefined }, { signal: controller.signal })
       .then((data) => {
         if (!Array.isArray(data.items) || !data.page) {
           throw new Error("예상한 영화 목록 응답 형식이 아닙니다.");

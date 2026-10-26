@@ -1,5 +1,8 @@
+// Local development uses Vite's /api proxy. Production defaults to the
+// deployed Render API; VITE_API_BASE_URL can override it for another host.
 const API_BASE_URL = (
-  import.meta.env.VITE_API_BASE_URL || ""
+  import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.PROD ? "https://cinefund-backend.onrender.com" : "")
 ).replace(/\/$/, "");
 
 async function request(path, { signal, ...options } = {}) {
@@ -48,6 +51,27 @@ export async function fetchMovies(
 
   if (!Array.isArray(body?.items) || typeof body?.page?.hasMore !== "boolean") {
     throw new Error("영화 목록 응답 형식이 올바르지 않습니다.");
+  }
+
+  return body;
+}
+
+export async function fetchRankings(
+  { limit = 10, cursor, sortBy = "amount", order = "desc" } = {},
+  { signal } = {},
+) {
+  const query = new URLSearchParams({
+    limit: String(limit),
+    sortBy,
+    order,
+  });
+
+  if (cursor) query.set("cursor", cursor);
+
+  const body = await request(`/api/rankings?${query}`, { signal });
+
+  if (!Array.isArray(body?.items) || typeof body?.page?.hasMore !== "boolean") {
+    throw new Error("랭킹 응답 형식이 올바르지 않습니다.");
   }
 
   return body;

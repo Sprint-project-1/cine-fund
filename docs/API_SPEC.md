@@ -1,6 +1,6 @@
 # CineFund API 명세
 
-> **상태: 프런트엔드·백엔드 구현 기준 제안, 2026-10-19.** 현재 문서상 서버에서 구현된 경로는 `GET /health`뿐이다. 아래 `/api` 계약은 페이지 담당자 초안을 통합한 구현 기준이다. 실제 결제, 로그인, 회원가입은 포함하지 않는다.
+> **상태: 현재 FE/BE 코드 대조 기준, 2026-10-26.** 서비스 API 코드는 백엔드에 구현되어 있고, 프런트엔드 랭킹 화면은 전용 `/api/rankings`를 호출한다. DB/HTTP 통합 검증 및 실제 FE/BE 실행 검증 여부는 별도로 관리한다. 실제 결제, 로그인, 회원가입은 포함하지 않는다.
 
 ## 1. 공통 계약
 
@@ -15,12 +15,11 @@
 
 ### 금액과 달성률
 
-- TMDB `budget`은 원본 USD 제작비다. seed/import에서 팀이 정한 USD→KRW 환율과 원 단위 반올림 규칙으로 환산해 DB `productionBudget`에 KRW 정수로 저장한다. 환율 숫자와 반올림 규칙은 TBD다.
-- API의 `productionBudget`은 별도 계산 없이 DB의 KRW 목표액을 10진 정수 문자열로 반환한다. 예시 값은 응답 형식 예시일 뿐이며, 환율이 정해지기 전 실제 환산 금액으로 간주하지 않는다.
+- TMDB `budget`은 원본 USD 제작비다. 현재 `db:seed`는 환율 변환 없이 이 USD 정수를 DB `productionBudget`에 저장하고, API는 이를 10진 정수 문자열로 반환한다.
+- 현재 FE는 `productionBudget`을 원화 목표액으로 표시하고 달성률을 계산한다. 따라서 화면에 표시되는 목표액과 달성률은 USD 값의 숫자를 KRW로 간주한 결과이며, 실제 환율 환산 결과가 아니다. 이 단위 불일치는 제품 기준을 확정하고 코드·데이터를 함께 정리해야 한다.
 - `totalFundedAmount`는 누적 모의 펀딩액이며 KRW 단위의 정수 문자열이다. 아직 펀딩 기록이 없으면 `"0"`이다.
-- 별도 `fundingGoal` 필드/DB 컬럼은 두지 않는다. 화면은 `productionBudget`을 목표액(KRW)으로 표시한다.
-- 달성률은 `totalFundedAmount / productionBudget × 100`으로 계산한다. `productionBudget`이 `null` 또는 0이면 달성률은 계산 불가로 처리한다. 이 값은 별도 API 필드가 아니다.
-- 구현 정합성 메모: 현재 백엔드 seed는 TMDB USD를 그대로 `productionBudget`에 저장한다. 환율과 반올림이 확정된 뒤 seed/import 및 데이터 검증을 KRW 저장 규칙에 맞춰 변경해야 한다.
+- 별도 `fundingGoal` 필드/DB 컬럼은 없다. 현재 구현에서 FE는 `productionBudget`을 목표액 표시·달성률 계산에 사용한다.
+- 달성률은 현재 FE에서 `totalFundedAmount / productionBudget × 100`으로 계산한다. 백엔드는 `achievementRate`를 응답하지 않으며, 목록/랭킹의 달성률 정렬은 같은 식의 비율 비교를 사용한다. `productionBudget`이 `null` 또는 0이면 계산 불가/정렬 결과 뒤로 처리한다.
 
 ### 공통 영화 응답 모델
 
@@ -40,7 +39,7 @@
 | `releaseDate` | string \| null | 개봉일 (`YYYY-MM-DD`) |
 | `genres` | string[] | 장르. 값이 없으면 빈 배열 |
 | `tagline` | string \| null | 태그라인 |
-| `productionBudget` | decimal string \| null | DB에 저장한 모의 펀딩 목표액(KRW 정수). TMDB 원본 USD 제작비의 환산 값 |
+| `productionBudget` | decimal string \| null | DB 값. 현재 seed 기준 TMDB 원본 USD 제작비 정수이며 환산하지 않음 |
 | `totalFundedAmount` | decimal string | 누적 모의 펀딩액. 없으면 `"0"` |
 
 포스터 URL 조합은 프런트엔드가 TMDB 이미지 base URL과 `posterPath`를 사용한다. `posterPath`가 `null`이면 대체 이미지를 표시한다.
@@ -72,13 +71,14 @@
 | Method | Path | 상태 | 기능 |
 |---|---|---|---|
 | `GET` | `/health` | 구현됨 | 서버 상태 확인 |
-| `GET` | `/api/movies` | 미구현 | 영화 목록·제목 검색·정렬·페이지네이션 |
-| `GET` | `/api/movies/{movieId}` | 미구현 | 영화 상세 조회 |
-| `GET` | `/api/movies/{movieId}/comments` | 미구현 | 영화별 코멘트 조회 |
-| `POST` | `/api/movies/{movieId}/fundings` | 미구현 | 익명 모의 펀딩 생성 |
-| `POST` | `/api/fundings/{fundingId}/cancel` | 미구현 | 비밀번호 검증 후 모의 펀딩 취소 |
-| `PATCH` | `/api/fundings/{fundingId}/comment` | 미구현 | 비밀번호 검증 후 코멘트 수정 |
-| `POST` | `/api/comparisons` | 미구현 | 2~5편 비교 정보 조회 |
+| `GET` | `/api/movies` | 구현됨 | 영화 목록·제목 검색·정렬·페이지네이션 |
+| `GET` | `/api/movies/{movieId}` | 구현됨 | 영화 상세 조회 |
+| `GET` | `/api/movies/{movieId}/comments` | 구현됨 | 영화별 코멘트 조회 |
+| `GET` | `/api/rankings` | 구현됨 | 랭킹 전용 seenIds cursor 페이지네이션 |
+| `POST` | `/api/movies/{movieId}/fundings` | 구현됨 | 익명 모의 펀딩 생성 |
+| `POST` | `/api/fundings/{fundingId}/cancel` | 구현됨 | 비밀번호 검증 후 모의 펀딩 취소 |
+| `PATCH` | `/api/fundings/{fundingId}/comment` | 구현됨 | 비밀번호 검증 후 코멘트 수정 |
+| `POST` | `/api/comparisons` | 구현됨 | 2~5편 비교 정보 조회 |
 
 ## 2. 페이지와 API 연결
 
@@ -89,13 +89,13 @@
 | 영화 상세 | `GET /api/movies/{movieId}`; 코멘트 `GET /api/movies/{movieId}/comments`; 모의 펀딩 `POST /api/movies/{movieId}/fundings`; 취소 `POST /api/fundings/{fundingId}/cancel`; 코멘트 수정 `PATCH /api/fundings/{fundingId}/comment` |
 | 비교 선택 | 후보 검색/조회에 `GET /api/movies` 사용; 선택 상태는 프런트엔드에서 관리 |
 | 비교 결과 | `POST /api/comparisons` |
-| 펀딩 랭킹 | `GET /api/movies?limit=10&sortBy=amount&order=desc` 또는 `order=asc`; 달성률 정렬은 `sortBy=achievementRate` |
+| 펀딩 랭킹 | `GET /api/rankings?limit=10&sortBy=...&order=...`; 다음 페이지는 같은 정렬 조건과 `page.nextCursor` 전달 |
 
 ## 3. 영화 목록 조회
 
 `GET /api/movies`
 
-홈, 영화 탐색, 비교 선택 후보, 랭킹이 공유한다. 결과 범위는 DB에 적재된 지정 영화 100편이다.
+홈, 영화 탐색, 비교 선택 후보가 공유한다. 결과 범위는 DB에 적재된 지정 영화 100편이다. 랭킹 화면용 전용 API는 `GET /api/rankings`다.
 
 ### Query parameters
 
@@ -112,7 +112,7 @@
 ### 정렬 및 cursor 규칙
 
 - `sortBy=amount`는 `totalFundedAmount` 기준이다.
-- `sortBy=achievementRate`는 `totalFundedAmount / productionBudget × 100` 기준이다. `productionBudget`이 `null` 또는 0인 영화는 두 방향 모두 결과 뒤에 둔다. `productionBudget`은 KRW 목표액이다.
+- `sortBy=achievementRate`는 코드상 `totalFundedAmount / productionBudget × 100` 기준이다. `productionBudget`이 `null` 또는 0인 영화는 두 방향 모두 결과 뒤에 둔다. 현재 값은 USD 원본이라 KRW 누적액과 단위가 일치하지 않는다.
 - 금액 또는 달성률이 같으면 `movieId` 오름차순으로 정렬한다. 제목 검색 기본 정렬은 `title` 오름차순, 제목이 같으면 `movieId` 오름차순이다.
 - 검색과 명시적 정렬이 없는 첫 요청에서는 100편의 순서를 한 번 무작위로 만든다. 응답 cursor는 그 순서의 다음 위치와 해당 요청의 필터/정렬 조건을 보존한다. 후속 페이지에서 순서를 다시 섞지 않는다.
 - cursor는 불투명한 값이며 클라이언트가 생성·해석하지 않는다. cursor의 요청 조건이 현재 query와 맞지 않거나 유효하지 않으면 400을 반환한다.
@@ -162,15 +162,16 @@ GET /api/movies?limit=10&sortBy=achievementRate&order=asc
 
 ### 홈 Top 3 및 랭킹
 
-별도 endpoint 없이 같은 목록 조회를 재사용한다.
+홈 Top 3는 별도 endpoint 없이 같은 목록 조회를 재사용한다. 랭킹 화면은 전용 `/api/rankings`를 사용한다.
 
 ```http
 GET /api/movies?limit=3&sortBy=amount&order=desc
-GET /api/movies?limit=10&sortBy=amount&order=desc
-GET /api/movies?limit=10&sortBy=amount&order=asc
+GET /api/rankings?limit=10&sortBy=amount&order=desc
+GET /api/rankings?limit=10&sortBy=amount&order=asc
+GET /api/rankings?limit=10&sortBy=achievementRate&order=desc
 ```
 
-Top 3와 랭킹은 누적 펀딩액을 기준으로 한다. 동률은 `movieId` 오름차순이다. 랭킹 화면의 달성률 정렬은 같은 목록 endpoint에 `sortBy=achievementRate`를 보낸다.
+홈 Top 3는 `/api/movies`의 금액 정렬을 사용한다. 랭킹 화면은 `/api/rankings`로 금액 또는 달성률 정렬 및 `seenIds` cursor 페이지네이션을 사용한다. 두 API 모두 동률은 `movieId` 오름차순이다.
 
 ## 4. 영화 상세 조회
 
@@ -411,7 +412,7 @@ Funding 원장 생성과 `Movie.totalFundedAmount` 증가는 하나의 DB 트랜
 }
 ```
 
-목표액은 공통 영화 모델의 `productionBudget`(KRW 정수 문자열)을 사용한다. 달성률은 프런트엔드에서 `totalFundedAmount / productionBudget × 100`으로 계산하며 별도 필드로 반환하지 않는다. API와 화면은 DB 값을 기준으로 하며 환율 변환은 seed/import 단계에서 수행한다. AI 요약은 이 API 범위가 아니다.
+현재 FE는 `productionBudget`을 원화로 표시하고 `totalFundedAmount / productionBudget × 100`을 달성률로 계산한다. API의 `productionBudget`은 seed에 저장된 TMDB USD 숫자 그대로이며 환산하지 않는다. 따라서 금액 단위 정책은 FE 표시와 데이터 의미가 일치하지 않는 상태로, 배포 전 합의 및 코드/데이터 정리가 필요하다. 달성률은 API 응답 필드가 아니다. AI 요약은 이 API 범위가 아니다.
 
 ## 10. 비교 선택 상태 전달
 
@@ -421,7 +422,7 @@ Funding 원장 생성과 `Movie.totalFundedAmount` 증가는 하나의 DB 트랜
 
 ## 11. 구현 전제 및 완료 체크
 
-이 문서로 착수할 endpoint는 `GET /api/movies`, `GET /api/movies/{movieId}`, `GET /api/movies/{movieId}/comments`, `POST /api/movies/{movieId}/fundings`, `POST /api/fundings/{fundingId}/cancel`, `PATCH /api/fundings/{fundingId}/comment`, `POST /api/comparisons`다. 홈과 랭킹은 목록 endpoint를 재사용한다. `/health` 외에는 현재 구현 완료로 간주하지 않는다.
+현재 endpoint 구현은 `GET /health`, `GET /api/movies`, `GET /api/movies/{movieId}`, `GET /api/movies/{movieId}/comments`, `GET /api/rankings`, `POST /api/movies/{movieId}/fundings`, `POST /api/fundings/{fundingId}/cancel`, `PATCH /api/fundings/{fundingId}/comment`, `POST /api/comparisons`다. API 코드 구현, DB/HTTP 통합 검증, 실제 FE/BE 실행 검증은 각각 별도 상태로 관리한다.
 
 - [ ] Prisma 모델/실제 DB와 공통 영화 응답 모델 필드가 일치하는지 확인한다. 필드가 없으면 schema/seed를 먼저 맞춘다.
 - [ ] 누적액의 단일 원천을 정하고 목록·상세·비교·랭킹이 같은 값을 반환하게 한다.
@@ -434,6 +435,6 @@ Funding 원장 생성과 `Movie.totalFundedAmount` 증가는 하나의 DB 트랜
 - [ ] 빈 코멘트 허용 여부와 공백 정규화 규칙을 결정하고 생성/수정 검증을 맞춘다.
 - [ ] 익명 펀딩 생성 및 비밀번호 검증 endpoint에 적용할 요청 제한/반복 실패 보호를 보안 정책과 맞춘다.
 - [ ] 상세·비교 화면에서 동일한 공통 필드명과 null 처리 규칙을 사용한다.
-- [ ] API 구현 및 통합 검증 시 정상·빈 결과·오류·페이지 경계·비교 ID 검증 시나리오를 확인한다.
+- [ ] DB/HTTP 통합 검증에서 정상·빈 결과·오류·페이지 경계·펀딩 원장 합계 및 비교 ID 검증을 확인한다.
 
-AI 요약 endpoint는 외부 서비스·비용·데이터 처리 정책이 정해지지 않아 범위에서 제외한다. 펀딩·취소·코멘트 계약은 화면의 입력과 확인 흐름을 기준으로 한 구현 제안이다. 저장소 README의 API 구현 상태 표시는 실제 코드와 일치하도록 구현 PR에서 갱신한다.
+AI 요약 endpoint는 외부 서비스·비용·데이터 처리 정책이 정해지지 않아 범위에서 제외한다. 펀딩·취소·코멘트 endpoint 코드는 구현되어 있으며, 통합 검증은 별도 진행 항목이다.
