@@ -1,52 +1,42 @@
 # 페이지 UI 및 동작 명세
 
-> 기준: [CineFund Figma 시안](https://www.figma.com/file/bYyl4ZsROpGqfC7nvNWyTj?node-id=2:2&locale=ko-kr&type=design). Figma에서 확인되는 화면 요소와 실제 API/서버 동작의 결정 상태를 구분한다. 시안에 회원가입 화면은 없지만 상세 화면에는 **익명 펀딩 참여 입력 UI**가 있다. 회원가입이 없다는 이유만으로 펀딩 UI를 삭제하거나, 반대로 시안만으로 API 계약이 확정되었다고 보지 않는다.
+> 기준: [CineFund Figma 시안](https://www.figma.com/design/bYyl4ZsROpGqfC7nvNWyTj/시네펀딩-|-영화-탐색·펀딩-UX?node-id=2-6&t=o8qJAmEkbxW6vFaj-1)과 현재 프런트엔드 코드. 이 문서는 FE/BE 공용 명세다. 화면과 상호작용은 Figma, 서버 요청/응답은 [API_SPEC](API_SPEC.md)을 기준으로 하며 서버 endpoint가 문서에 있다고 해서 구현 완료로 보지 않는다.
 
-> 라우팅 기준을 구분한다: 현재 GitHub `main`의 `client/App.jsx`에는 `/`, `/detail`, `/compare`, `/compare-result`, `/ranking`이 등록되어 있다. 기존 기획/Figma 경로(`/`, `/{id}`, `/comparison`, `/results`, `/ranking`)와 다른 경로는 아래에서 목표와 현재 구현을 함께 기록한다. 영화 탐색은 목록과 Top 3 API 호출로 연결했으며, 로컬 서버 연동은 실행 확인이 필요하다. 비교 결과·랭킹은 예시 데이터 기반 UI이고 상세·비교 선택은 placeholder다.
+## 공통
 
-## 공통 UI
+- FE는 `client/`의 React 앱이며 CineFund 내부 API를 호출한다. DB에 직접 연결하거나 화면 요청에서 TMDB API를 호출하지 않는다.
+- 공통 헤더는 영화 탐색, 비교, 랭킹 내비게이션과 제목 검색 제안을 제공한다. 검색은 `GET /api/movies?q=...`의 제목 검색이며 연도·장르 필터는 제공하지 않는다.
+- 로컬 Vite 개발에서는 상대 경로 `/api`를 사용해 Vite proxy가 `http://localhost:3000`으로 전달한다. 다른 API origin을 쓸 때 `VITE_API_BASE_URL`을 설정한다. 백엔드 연결 실패와 미구현 경로는 별도 오류로 표시한다.
+- 영화 금액은 API가 반환하는 정수 문자열을 `BigInt`로 다룬다. `productionBudget`과 펀딩 금액은 KRW다. 제작비가 없거나 0이면 목표액을 미표시하고 달성률을 “산정 불가”로 표시한다. 환율 변환은 FE에서 하지 않는다.
+- 영화 비교 선택은 메모리 상태만 사용한다. 계정/로그인, 쿠키/localStorage 기반 사용자 상태, 실제 결제/환불은 범위에 없다.
+- 펀딩 및 코멘트 생성·수정·취소는 익명 모의 기능이다. 비밀번호는 API 요청에만 전송하며 화면이나 로그에 보관하지 않는다.
 
-- 데스크톱·태블릿·모바일 화면 프레임이 준비되어 있다. 실제 브레이크포인트와 세부 반응형 동작은 구현 전 Figma에서 확인한다.
-- 공통 헤더에는 로고, 영화 탐색/랭킹/비교 내비게이션, 영화 검색 입력이 보인다. 검색 API는 [API 명세](API_SPEC.md)의 제목 검색 `q`를 기준으로 하며 연도·장르는 검색하지 않는다.
-- 디자인은 밝은 배경과 카드형 영화 정보, 포스터, 청록색 계열 주요 액션/진행 표시를 사용한다. 정확한 색상 토큰·타이포그래피·간격은 디자인 시스템 기준을 확인한다.
-- 영화 탐색·비교·랭킹 페이지의 상단 제목은 공통 헤더 컴포넌트를 사용해 상단 위치, 제목 크기, 영문 라벨과 설명 간격을 통일한다.
-- 로그인·회원가입·계정 생성 화면은 시안에 없다. 서비스는 비로그인 흐름으로 설계하며 사용자 상태를 쿠키/localStorage에 저장하지 않는다.
-- 펀딩은 실제 결제가 아닌 모의 기능이다. 결제 수단 정보는 수집하지 않는다.
-- 영화 제목·개봉일·장르·슬로건·제작비·포스터 등은 사전 적재된 PostgreSQL 데이터에서 조회한다. 페이지를 열 때마다 TMDB에 요청하지 않는다.
-- 로딩·빈 결과·오류·재시도 화면은 시안에서 모두 확정되지 않았다. 구현 시 상태 설계와 문구를 보완한다.
+## 페이지별 동작 및 API
 
-## 페이지별 명세
-
-| 목표 경로 (기획/Figma) | 현재 `main` 경로 | 목적 및 시안 구성 | 사용자 동작 및 데이터 | 상태 및 이동 |
+| 현재 FE 경로 | 화면 목적 / Figma 구성 | FE 동작 및 API 계약 | 구현 상태 |
 |---|---|---|---|
-| `/` | `/` | 영화 탐색. 소개 영역, 펀딩순위 Top 3 가로 레일, 전체 영화 카드 목록과 공통 검색 헤더가 보인다. | `GET /api/movies?limit=10`으로 DB 목록을, `GET /api/movies?limit=3&sortBy=amount&order=desc`로 Top 3를 조회한다. 검색은 제목 `q`만 사용한다. 페이지 번호는 10개씩 묶어 표시한다. 번호를 직접 누르면 필요한 cursor를 순서대로 확보해 해당 페이지로 이동하며, 이전·다음 화살표는 페이지 묶음 단위로 이동한다. 검색어 변경 시 페이지와 cursor 캐시를 초기화한다. 포스터는 원본 세로 비율을 유지해 전체가 보이도록 표시한다. API 로딩·오류·빈 결과를 화면에 표시한다. 백엔드 주소는 `VITE_API_BASE_URL`로 지정하고 기본값은 `http://localhost:3000`이다. 영화 카드는 현재 `/detail`로 이동하지만 상세 화면 데이터 연결은 별도 작업이다. |
-| `/{id}` | `/detail` (현재 동적 ID 없음) | 포스터·제목·메타 정보와 누적 펀딩/목표/달성률, 코멘트, 펀딩 참여 영역. 펀딩 취소와 코멘트 수정/비밀번호 확인 팝업 시안. | 익명 참여 입력은 닉네임·금액·코멘트·비밀번호·동의 항목으로 보인다. 펀딩 취소 팝업은 비밀번호 입력 후 확인을 눌러 기존 모의 펀딩을 취소하며, 취소 버튼과 X는 팝업만 닫는다. 상세 화면은 현재 예시 데이터를 사용하는 placeholder이며, 모바일·태블릿에서는 포스터/정보와 코멘트/참여 영역을 세로로 배치하고 넓은 화면에서는 나란히 배치한다. API 계약과 영화 ID 전달 방식은 별도 작업이다. |
-| `/comparison` | `/compare` | 영화 비교 선택. 검색 결과 패널, 선택 개수 `n/5`, 제거/추가와 비교 CTA. | 2~5개 선택 후 비교 결과 목표 경로로 이동. 후보는 `GET /api/movies`의 제목 검색 `q`로 조회한다. 선택 상태는 메모리/URL 전달을 검토하며 브라우저 저장소로 보존하지 않는다. 현재 `ComparePage.jsx`는 placeholder다. |
-| `/results` | `/compare-result` | 선택 영화를 비교표/카드로 비교. 시안에 설명·감독·펀딩액·달성률 후보, 재선택/공유 액션과 AI 비교 요약 팝업이 있다. | 현재 `CompareResultPage.jsx`는 라우터 state로 받은 영화를 표/모바일 카드로 표시하고, 비교 수정·결과 복사·AI 요약 팝업 UI를 제공한다. state가 없거나 영화가 2개 미만이면 비교 선택 안내를 표시한다. API 연동은 없고 AI 요약은 자리표시 문구다. |
-| `/ranking` | `/ranking` | 펀딩 순위. 정렬 선택, 펀딩액/목표액/달성률 목록. | 현재 `RankingPage.jsx`는 샘플 30개를 클라이언트에서 정렬하고 처음 10개를 표시한다. 화면 하단에 접근하면 IntersectionObserver로 다음 10개를 추가하며, 400ms 로딩 표시는 시뮬레이션이다. 백엔드 API·cursor 기반 추가 조회는 아직 연결되지 않았다. 네 가지 정렬 UI는 구현되어 있다. |
+| `/` | 영화 탐색, 펀딩 Top 3 레일, 영화 카드와 페이지 번호 | Top 3는 `GET /api/movies?limit=3&sortBy=amount&order=desc`; 목록은 `GET /api/movies?limit=10&q=...&cursor=...`. 검색 변경 시 첫 페이지로 이동한다. cursor는 방문한 페이지 번호별로 메모리에 보관한다. 카드 선택 시 `/detail/:movieId`로 이동한다. | 목록/Top 3 API 연결. 데이터 서버 제공 필요. |
+| `/detail/:movieId` | 포스터, 제목·메타정보, 줄거리, 펀딩 현황, 최신 코멘트, 모의 펀딩 입력 | 상세 `GET /api/movies/{movieId}`; 코멘트 `GET /api/movies/{movieId}/comments?limit=10&cursor=...`; 생성 `POST /api/movies/{movieId}/fundings`; 수정 `PATCH /api/fundings/{fundingId}/comment`; 취소 `POST /api/fundings/{fundingId}/cancel`. 취소 확인만 API 호출하며 취소/X 버튼은 팝업을 닫는다. | FE 연결 완료. endpoint 구현 여부는 API 명세/BE 저장소에서 별도 확인. |
+| `/detail` | 식별자 없는 이전 링크 호환 | `state.movieId` 또는 `state.movie.movieId`가 있으면 상세 API로 조회한다. 식별자가 없으면 목록으로 안내한다. 신규 링크는 `/detail/:movieId`를 사용한다. | 호환 경로 |
+| `/compare` | 후보 검색, 선택 영화, `n/5`, 비교 CTA | 후보 목록은 `GET /api/movies?limit=10&q=...&cursor=...`. 2~5개 ID를 메모리에서 관리하고 CTA에서 `/compare-result`로 ID 배열을 넘긴다. | 후보 검색 API 연결. |
+| `/compare-result` | 선택 영화 비교표/모바일 카드, 수정·복사 액션, AI 요약 시안 | 라우터 메모리 state에서 `movieIds`를 받아 `POST /api/comparisons`로 결과를 조회한다. 새로고침/직접 진입으로 state가 없으면 선택 안내를 표시한다. AI 요약은 endpoint가 없어 시안의 안내 UI만 제공한다. | 비교 API 연결. |
+| `/ranking` | 펀딩액/목표액/달성률 순위와 무한 스크롤 | `GET /api/movies?limit=10&sortBy=amount|achievementRate&order=asc|desc&cursor=...`. 정렬을 바꾸면 cursor와 목록을 초기화한다. | cursor 목록 API 연결. |
 
-## 시안에서 확인된 내용과 미확정 내용
+## 로딩·빈 결과·오류
 
-| 구분 | 항목 |
-|---|---|
-| 시안에서 확인 | 다섯 페이지 흐름, 검색 입력 UI, 펀딩 참여 입력 UI, 펀딩 취소 팝업, 코멘트 수정/비밀번호 팝업, 2~5개 비교 선택, 비교 결과, 랭킹, AI 요약 팝업, 데스크톱·태블릿·모바일 프레임 |
-| 유지 및 화면 합의 반영 | 영화 100편, 기본 랜덤 목록, 영화 탐색 목록 페이지당 10편 및 페이지네이션, 펀딩액/달성률 정렬, 2~5개 비교, 닉네임 최대 8글자, 코멘트 최대 100글자, 최신 코멘트 10개 단위 |
-| 현재 UI 동작 (API 미연결) | 영화 탐색은 번호 페이지네이션, 랭킹은 스크롤 시 샘플 항목 추가 표시. 랭킹의 서버 페이지네이션 방식과 무한 스크롤을 최종 요구사항으로 할지는 API/팀 합의 필요 |
-| 팀/API 합의 필요 | 익명 펀딩의 동의 문구 의미, 빈 코멘트 허용, 코멘트 수정 권한/횟수, AI 요약 MVP 여부 |
+- 목록과 상세는 로딩, 빈 상태, API 오류 및 재시도 동작을 제공한다. 코멘트는 빈 상태와 다음 묶음 로딩을 제공한다.
+- 순위 목록은 첫 페이지 및 추가 페이지 로딩과 재시도 동작을 제공한다.
+- API 응답 필드, 오류 코드는 [API_SPEC](API_SPEC.md), DB 기준 데이터는 [DATABASE_SCHEMA](DATABASE_SCHEMA.md)를 따른다.
+- 비교 결과 AI 요약 API, 동의 체크 문구/서버 기록 여부, 코멘트 빈 값 정책은 확정되지 않았다.
 
-## 이동 흐름
+## 사용자 흐름
 
 ```mermaid
 flowchart LR
-  Home[영화 탐색 /] --> Detail[영화 상세 /id]
+  Home[영화 탐색 /] --> Detail[영화 상세 /detail/:movieId]
   Home --> Ranking[펀딩 랭킹 /ranking]
-  Home --> Compare[비교 선택 /comparison]
-  Compare --> Results[비교 결과 /results]
+  Home --> Compare[비교 선택 /compare]
+  Compare --> Results[비교 결과 /compare-result]
   Results --> Compare
   Ranking --> Detail
-  Detail --> Compare
 ```
-
-현재 React Router 경로는 저장소에 존재하지만 기획 경로와 일부 다르다. `/detail`에 영화 식별자를 path parameter 또는 다른 방식으로 전달할지, `/compare`와 `/compare-result`를 기획 경로로 바꿀지 팀/API 담당자와 결정하고 [API 명세](API_SPEC.md)와 함께 갱신한다. 디자인 화면이 코드 동작을 의미하지는 않는다.
-
-화면의 데이터는 CineFund 내부 서버 API를 통해 PostgreSQL에서 가져온다. TMDB는 앱 화면 조회 시 호출하지 않고 초기 seed/import에서 사용한다.

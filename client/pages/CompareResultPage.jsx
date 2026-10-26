@@ -1,30 +1,133 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import AiSummaryModal from "../components/AiSummaryModal.jsx";
+import SkeletonBlock from "../components/SkeletonBlock.jsx";
+import { fetchComparison } from "../api/movies.js";
+
+const EMPTY_MOVIE_IDS = [];
+const money = (value) => {
+  if (value == null) return "-";
+  try {
+    return `₩ ${BigInt(value).toLocaleString("ko-KR")}`;
+  } catch {
+    return "-";
+  }
+};
 
 // 비교 항목: 라벨과 값을 꺼내는 방법
 const genres = { label: "장르", getValue: (movie) => (movie.tags ?? []).join(", ") || "-" };
 const director = { label: "감독", getValue: (movie) => movie.director || "-" };
-const funding = { label: "펀딩 금액", getValue: (movie) => movie.fundingAmount ?? "-" };
-const goal = { label: "목표 금액", getValue: (movie) => movie.fundingGoal ?? "-" };
+const funding = { label: "펀딩 금액", getValue: (movie) => money(movie.totalFundedAmount) };
+const goal = { label: "목표 금액", getValue: (movie) => money(movie.productionBudget) };
 const rate = { label: "달성률", getValue: (movie) => movie.achievementRate ?? "-" };
 
 // 데스크톱·태블릿은 표, 모바일은 카드로 보여 준다 (시안의 항목 순서)
 const tableRows = [genres, director, funding, rate];
 const cardRows = [genres, funding, goal, rate];
 
+function ComparisonSkeleton({ count }) {
+  const gridStyle = { gridTemplateColumns: `120px repeat(${count}, 1fr)` };
+
+  return (
+    <section className="pt-6 pb-12 text-[#141c2b]" role="status" aria-label="비교 정보를 불러오는 중">
+      <div className="mb-8 flex flex-col gap-5 min-[911px]:flex-row min-[911px]:items-end min-[911px]:justify-between">
+        <div className="w-full space-y-3">
+          <SkeletonBlock className="h-4 w-24" />
+          <SkeletonBlock className="h-11 w-48" />
+          <SkeletonBlock className="h-5 w-3/4" />
+        </div>
+        <SkeletonBlock className="h-[46px] w-36 self-end rounded-xl max-[620px]:w-full" />
+      </div>
+      <div className="rounded-3xl bg-white p-6 max-[620px]:hidden">
+        <div className="grid gap-4" style={gridStyle}>
+          <div />
+          {Array.from({ length: count }, (_, index) => (
+            <div key={index} className="rounded-2xl bg-[#f1f2f6] p-4">
+              <SkeletonBlock className="aspect-[2/3] w-full rounded-xl" />
+              <SkeletonBlock className="mx-auto mt-4 h-5 w-3/4" />
+            </div>
+          ))}
+        </div>
+        <div className="mt-8 space-y-3">
+          {Array.from({ length: 4 }, (_, row) => (
+            <div key={row} className={`grid gap-4 rounded-xl py-5 ${row % 2 === 0 ? "bg-[#f5f6f8]" : ""}`} style={gridStyle}>
+              <SkeletonBlock className="ml-4 h-4 w-16" />
+              {Array.from({ length: count }, (_, column) => <SkeletonBlock key={column} className="mx-4 h-4" />)}
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="hidden max-[620px]:block">
+        <SkeletonBlock className="mb-4 h-7 w-32" />
+        <ul className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2">
+          {Array.from({ length: count }, (_, index) => (
+            <li key={index} className="w-[72%] min-w-[240px] shrink-0 snap-start rounded-2xl border border-[#e0e5ed] bg-white p-4">
+              <div className="flex gap-4">
+                <SkeletonBlock className="aspect-[2/3] w-[72px] shrink-0 rounded-xl" />
+                <div className="flex-1 space-y-3 pt-2"><SkeletonBlock className="h-5 w-full" /><SkeletonBlock className="h-4 w-3/4" /></div>
+              </div>
+              <div className="mt-4 space-y-4">
+                {Array.from({ length: 4 }, (_, row) => <div key={row} className="space-y-2 border-t border-[#e0e5ed] pt-3"><SkeletonBlock className="h-3 w-20" /><SkeletonBlock className="h-5 w-32" /></div>)}
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  );
+}
+
 export default function CompareResultPage() {
   const { state } = useLocation();
-  const movies = state?.movies ?? [];
+  const movieIds = Array.isArray(state?.movieIds) ? state.movieIds : EMPTY_MOVIE_IDS;
+  const hasValidMovieIds = movieIds.length >= 2
+    && movieIds.length <= 5
+    && movieIds.every((id) => Number.isSafeInteger(id) && id > 0)
+    && new Set(movieIds).size === movieIds.length;
   const navigate = useNavigate();
+  const [comparison, setComparison] = useState({ key: "", status: "idle", movies: [], error: "" });
+  const [retry, setRetry] = useState(0);
   const [copied, setCopied] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
+  const requestKey = JSON.stringify([movieIds, retry]);
+  const currentComparison = comparison.key === requestKey
+    ? comparison
+    : { key: requestKey, status: hasValidMovieIds ? "loading" : "idle", movies: [], error: "" };
+
+  useEffect(() => {
+    if (!hasValidMovieIds) return undefined;
+    const controller = new AbortController();
+    fetchComparison(movieIds, { signal: controller.signal })
+      .then((items) => {
+        if (!controller.signal.aborted) {
+          setComparison({ key: requestKey, status: "success", movies: items, error: "" });
+        }
+      })
+      .catch((cause) => {
+        if (!controller.signal.aborted) {
+          setComparison({
+            key: requestKey,
+            status: "error",
+            movies: [],
+            error: cause.message || "비교 정보를 불러오지 못했습니다.",
+          });
+        }
+      });
+    return () => controller.abort();
+  }, [hasValidMovieIds, movieIds, requestKey]);
+
+  const displayMovies = currentComparison.movies.map((movie) => ({
+    ...movie,
+    id: movie.movieId,
+    tags: movie.genres ?? [],
+    achievementRate: getAchievementRate(movie.totalFundedAmount, movie.productionBudget),
+  }));
 
   // 새로고침 등으로 선택 정보가 없거나 2개 미만이면 안내
-  if (movies.length < 2) {
+  if (!hasValidMovieIds) {
     return (
       <section className="mx-auto max-w-[640px] pt-16 text-center">
-        <p className="text-[#697180]">비교할 영화를 먼저 선택해 주세요.</p>
+        <p className="text-[#697180]">비교할 영화 정보가 없거나 올바르지 않습니다. 서로 다른 영화 2~5편을 선택해 주세요.</p>
         <Link to="/compare" className="mt-4 inline-block font-bold text-[#037069]">
           영화 선택하러 가기
         </Link>
@@ -32,10 +135,14 @@ export default function CompareResultPage() {
     );
   }
 
-  const columns = { gridTemplateColumns: `120px repeat(${movies.length}, 1fr)` };
+  if (currentComparison.status === "loading") return <ComparisonSkeleton count={movieIds.length} />;
+  if (currentComparison.status === "error") return <div className="py-16 text-center" role="alert"><p className="text-[#697180]">{currentComparison.error}</p><button type="button" className="mt-4 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white" onClick={() => setRetry((n) => n + 1)}>다시 시도</button></div>;
+  if (displayMovies.length === 0) return <section className="py-16 text-center"><p className="text-[#697180]">비교 결과가 없습니다.</p><Link to="/compare" className="mt-4 inline-block font-bold text-[#037069]">영화 다시 선택하기</Link></section>;
+
+  const columns = { gridTemplateColumns: `120px repeat(${displayMovies.length}, 1fr)` };
 
   async function copyResult() {
-    const text = movies.map((movie) => movie.title).join(" vs ");
+    const text = displayMovies.map((movie) => movie.title).join(" vs ");
     await navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -67,9 +174,9 @@ export default function CompareResultPage() {
       <div className="rounded-3xl bg-white p-6 max-[620px]:hidden">
         <div className="grid gap-4" style={columns}>
           <div />
-          {movies.map((movie) => (
+          {displayMovies.map((movie) => (
             <div key={movie.id} className="rounded-2xl bg-[#f1f2f6] p-4 min-[621px]:max-[910px]:text-center">
-              <div className="aspect-[2/3] rounded-xl bg-[#5d4a6b]" />
+              {movie.posterPath ? <img src={`https://image.tmdb.org/t/p/w342${movie.posterPath}`} alt={`${movie.title} 포스터`} className="aspect-[2/3] w-full rounded-xl bg-[#f1f2f6] object-cover" /> : <div className="aspect-[2/3] rounded-xl bg-[#5d4a6b]" />}
               <h2 className="mt-4 text-lg font-bold">{movie.title}</h2>
               {/* 감독은 태블릿에서만 카드에 보인다 */}
               <p className="mt-1 hidden text-xs text-[#697180] min-[621px]:max-[910px]:block">
@@ -87,7 +194,7 @@ export default function CompareResultPage() {
               style={columns}
             >
               <div className="px-4 text-sm text-[#697180]">{row.label}</div>
-              {movies.map((movie) => (
+              {displayMovies.map((movie) => (
                 <div
                   key={movie.id}
                   className={`px-4 text-sm min-[621px]:max-[910px]:text-center ${row === rate ? "font-bold text-[#4d7c0f]" : ""}`}
@@ -104,13 +211,13 @@ export default function CompareResultPage() {
       <div className="hidden max-[620px]:block">
         <h2 className="mb-4 text-xl font-bold">비교 영화</h2>
         <ul className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2">
-          {movies.map((movie) => (
+          {displayMovies.map((movie) => (
             <li
               key={movie.id}
               className="w-[72%] min-w-[240px] shrink-0 snap-start rounded-2xl border border-[#e0e5ed] bg-white p-4"
             >
               <div className="flex gap-4">
-                <div className="aspect-[2/3] w-[72px] shrink-0 rounded-xl bg-[#5d4a6b]" />
+                {movie.posterPath ? <img src={`https://image.tmdb.org/t/p/w185${movie.posterPath}`} alt={`${movie.title} 포스터`} className="aspect-[2/3] w-[72px] shrink-0 rounded-xl object-cover" /> : <div className="aspect-[2/3] w-[72px] shrink-0 rounded-xl bg-[#5d4a6b]" />}
                 <div>
                   <h3 className="text-lg font-bold">{movie.title}</h3>
                   <p className="mt-2 text-sm text-[#697180]">감독 · {movie.director || "-"}</p>
@@ -153,4 +260,16 @@ export default function CompareResultPage() {
       {aiOpen && <AiSummaryModal onClose={() => setAiOpen(false)} />}
     </section>
   );
+}
+
+function getAchievementRate(totalFundedAmount, productionBudget) {
+  if (totalFundedAmount == null || productionBudget == null) return "산정 불가";
+  try {
+    const goal = BigInt(productionBudget);
+    if (goal <= 0n) return "산정 불가";
+    const tenths = (BigInt(totalFundedAmount) * 1000n) / goal;
+    return `${tenths / 10n}.${tenths % 10n}%`;
+  } catch {
+    return "산정 불가";
+  }
 }

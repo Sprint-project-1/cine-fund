@@ -2,9 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { Search } from "lucide-react";
 import PageHeading from "../components/PageHeading.jsx";
+import SkeletonBlock from "../components/SkeletonBlock.jsx";
 import { fetchMovies } from "../api/movies.js";
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 const PAGE_SIZE = 10;
 
 function Poster({ posterPath, title, compact = false }) {
@@ -47,9 +47,7 @@ export default function ComparePage() {
   const [hasMore, setHasMore] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [isComparing, setIsComparing] = useState(false);
   const [listError, setListError] = useState("");
-  const [compareError, setCompareError] = useState("");
   const requestId = useRef(0);
   const loadingMoreRef = useRef(false);
 
@@ -97,7 +95,6 @@ export default function ComparePage() {
       if (current.length >= 5) return current;
       return [...current, movieId];
     });
-    setCompareError("");
   }
 
   function updateQuery(value) {
@@ -146,47 +143,9 @@ export default function ComparePage() {
     }
   }
 
-  async function compareMovies() {
-    if (selectedIds.length < 2 || selectedIds.length > 5 || isComparing) return;
-    setIsComparing(true);
-    setCompareError("");
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/comparisons`, {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ movieIds: selectedIds }),
-      });
-      const body = await response.json().catch(() => null);
-      if (!response.ok) {
-        throw new Error(body?.error?.message || "영화 비교를 불러오지 못했습니다.");
-      }
-      if (!Array.isArray(body?.items) || body.items.length !== selectedIds.length) {
-        throw new Error("영화 비교 응답 형식이 올바르지 않습니다.");
-      }
-
-      navigate("/compare-result", {
-        state: {
-          movies: body.items.map((movie) => ({
-            ...movie,
-            id: movie.movieId,
-            tags: movie.genres ?? [],
-            fundingAmount: movie.totalFundedAmount ?? "0",
-            fundingGoal: movie.productionBudget,
-            achievementRate: getAchievementRate(
-              movie.totalFundedAmount,
-              movie.productionBudget,
-            ),
-          })),
-        },
-      });
-    } catch (error) {
-      setCompareError(getApiErrorMessage(error, "영화 비교를 불러오지 못했습니다."));
-    } finally {
-      setIsComparing(false);
-    }
+  function compareMovies() {
+    if (selectedIds.length < 2 || selectedIds.length > 5) return;
+    navigate("/compare-result", { state: { movieIds: [...selectedIds] } });
   }
 
   return (
@@ -199,14 +158,13 @@ export default function ComparePage() {
           description="비교할 영화를 2개 이상, 최대 5개까지 선택하세요."
         />
         <div className="flex flex-col items-end gap-2">
-          {compareError && <p className="text-right text-xs text-[#b42318]" role="alert">{compareError}</p>}
           <button
             type="button"
             onClick={compareMovies}
-            disabled={selectedIds.length < 2 || isComparing}
+            disabled={selectedIds.length < 2 || selectedIds.length > 5}
             className="h-[42px] w-[152px] shrink-0 rounded-xl bg-[#037069] text-sm font-bold text-white transition-colors hover:bg-[#025f59] disabled:cursor-not-allowed disabled:bg-[#a8bfbd]"
           >
-            {isComparing ? "비교 중…" : "영화 비교하기"}
+            영화 비교하기
           </button>
         </div>
       </div>
@@ -263,7 +221,17 @@ export default function ComparePage() {
                 </li>
               );
             })}
-            {isLoading && <li className="py-12 text-center text-sm text-[#66738a]">영화 목록을 불러오는 중입니다…</li>}
+            {(isLoading || isLoadingMore) && Array.from({ length: isLoading ? 6 : 3 }, (_, index) => (
+              <li key={`skeleton-${index}`} className="flex min-h-[96px] items-center gap-3 px-3 py-1.5 min-[621px]:gap-4 min-[621px]:pr-5" aria-hidden="true">
+                <SkeletonBlock className="h-[84px] w-[56px] shrink-0 rounded-lg" />
+                <div className="min-w-0 flex-1 space-y-3">
+                  <SkeletonBlock className="h-4 w-3/4" />
+                  <SkeletonBlock className="h-3 w-1/2" />
+                </div>
+                <SkeletonBlock className="h-9 w-[76px] shrink-0 rounded-[10px] min-[621px]:w-[92px]" />
+              </li>
+            ))}
+            {(isLoading || isLoadingMore) && <li className="sr-only" role="status">영화 목록을 불러오는 중입니다.</li>}
             {!isLoading && !listError && movies.length === 0 && (
               <li className="py-12 text-center text-sm text-[#66738a]">검색 결과가 없습니다.</li>
             )}
@@ -325,17 +293,4 @@ export default function ComparePage() {
       </div>
     </section>
   );
-}
-
-function getAchievementRate(totalFundedAmount, productionBudget) {
-  if (!totalFundedAmount || !productionBudget) return "-";
-  try {
-    const funded = BigInt(totalFundedAmount);
-    const goal = BigInt(productionBudget);
-    if (goal <= 0n) return "-";
-    const tenthsOfPercent = (funded * 1000n) / goal;
-    return `${tenthsOfPercent / 10n}.${tenthsOfPercent % 10n}%`;
-  } catch {
-    return "-";
-  }
 }

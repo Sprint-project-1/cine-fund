@@ -15,11 +15,12 @@
 
 ### 금액과 달성률
 
-- `productionBudget`에는 TMDB `budget` 숫자를 환율 변환 없이 저장한다. 팀 화면 규칙에 따라 목표액 표시는 이 숫자와 동일한 숫자를 KRW로 표시한다. 예: `"225000000"` → `₩225,000,000`. 환율 계산은 하지 않는다.
+- TMDB `budget`은 원본 USD 제작비다. seed/import에서 팀이 정한 USD→KRW 환율과 원 단위 반올림 규칙으로 환산해 DB `productionBudget`에 KRW 정수로 저장한다. 환율 숫자와 반올림 규칙은 TBD다.
+- API의 `productionBudget`은 별도 계산 없이 DB의 KRW 목표액을 10진 정수 문자열로 반환한다. 예시 값은 응답 형식 예시일 뿐이며, 환율이 정해지기 전 실제 환산 금액으로 간주하지 않는다.
 - `totalFundedAmount`는 누적 모의 펀딩액이며 KRW 단위의 정수 문자열이다. 아직 펀딩 기록이 없으면 `"0"`이다.
-- `fundingGoal`은 응답하지 않는다. 화면에서 목표액을 표시할 때 `productionBudget` 숫자를 사용한다.
+- 별도 `fundingGoal` 필드/DB 컬럼은 두지 않는다. 화면은 `productionBudget`을 목표액(KRW)으로 표시한다.
 - 달성률은 `totalFundedAmount / productionBudget × 100`으로 계산한다. `productionBudget`이 `null` 또는 0이면 달성률은 계산 불가로 처리한다. 이 값은 별도 API 필드가 아니다.
-- `productionBudget`은 원본 TMDB 제작비 값이면서 위 팀 표시 규칙에 따라 같은 숫자가 원화 목표액으로도 쓰인다. 화면 문구에서는 제작비와 목표액의 의미를 구분한다.
+- 구현 정합성 메모: 현재 백엔드 seed는 TMDB USD를 그대로 `productionBudget`에 저장한다. 환율과 반올림이 확정된 뒤 seed/import 및 데이터 검증을 KRW 저장 규칙에 맞춰 변경해야 한다.
 
 ### 공통 영화 응답 모델
 
@@ -39,7 +40,7 @@
 | `releaseDate` | string \| null | 개봉일 (`YYYY-MM-DD`) |
 | `genres` | string[] | 장르. 값이 없으면 빈 배열 |
 | `tagline` | string \| null | 태그라인 |
-| `productionBudget` | decimal string \| null | TMDB `budget` 원본 정수 |
+| `productionBudget` | decimal string \| null | DB에 저장한 모의 펀딩 목표액(KRW 정수). TMDB 원본 USD 제작비의 환산 값 |
 | `totalFundedAmount` | decimal string | 누적 모의 펀딩액. 없으면 `"0"` |
 
 포스터 URL 조합은 프런트엔드가 TMDB 이미지 base URL과 `posterPath`를 사용한다. `posterPath`가 `null`이면 대체 이미지를 표시한다.
@@ -111,7 +112,7 @@
 ### 정렬 및 cursor 규칙
 
 - `sortBy=amount`는 `totalFundedAmount` 기준이다.
-- `sortBy=achievementRate`는 `totalFundedAmount / productionBudget × 100` 기준이다. `productionBudget`이 `null` 또는 0인 영화는 두 방향 모두 결과 뒤에 둔다.
+- `sortBy=achievementRate`는 `totalFundedAmount / productionBudget × 100` 기준이다. `productionBudget`이 `null` 또는 0인 영화는 두 방향 모두 결과 뒤에 둔다. `productionBudget`은 KRW 목표액이다.
 - 금액 또는 달성률이 같으면 `movieId` 오름차순으로 정렬한다. 제목 검색 기본 정렬은 `title` 오름차순, 제목이 같으면 `movieId` 오름차순이다.
 - 검색과 명시적 정렬이 없는 첫 요청에서는 100편의 순서를 한 번 무작위로 만든다. 응답 cursor는 그 순서의 다음 위치와 해당 요청의 필터/정렬 조건을 보존한다. 후속 페이지에서 순서를 다시 섞지 않는다.
 - cursor는 불투명한 값이며 클라이언트가 생성·해석하지 않는다. cursor의 요청 조건이 현재 query와 맞지 않거나 유효하지 않으면 400을 반환한다.
@@ -410,7 +411,7 @@ Funding 원장 생성과 `Movie.totalFundedAmount` 증가는 하나의 DB 트랜
 }
 ```
 
-목표액/달성률은 별도 필드로 반환하지 않는다. 프런트엔드가 공통 금액 규칙에 따라 표시·계산한다. AI 요약은 이 API 범위가 아니다.
+목표액은 공통 영화 모델의 `productionBudget`(KRW 정수 문자열)을 사용한다. 달성률은 프런트엔드에서 `totalFundedAmount / productionBudget × 100`으로 계산하며 별도 필드로 반환하지 않는다. API와 화면은 DB 값을 기준으로 하며 환율 변환은 seed/import 단계에서 수행한다. AI 요약은 이 API 범위가 아니다.
 
 ## 10. 비교 선택 상태 전달
 

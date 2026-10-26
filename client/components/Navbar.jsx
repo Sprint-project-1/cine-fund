@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, NavLink, useNavigate, useSearchParams } from "react-router";
 import { Menu, Search, X } from "lucide-react";
 import { fetchMovies } from "../api/movies.js";
+import SkeletonBlock from "./SkeletonBlock.jsx";
 
 const navLinks = [
   { to: "/", label: "영화 탐색" },
@@ -85,9 +86,11 @@ function NavbarContent({ initialQuery }) {
     if (!isSuggestionsOpen || !query.trim()) return null;
 
     return (
-      <div className="absolute inset-x-0 top-full z-20 mt-2 max-h-80 overflow-y-auto rounded-xl border border-[#e5e7eb] bg-white py-1 shadow-xl" role="listbox" aria-label="영화 검색 제안">
+      <div className="absolute inset-x-0 top-full z-20 mt-2 max-h-80 overflow-y-auto rounded-xl border border-[#e5e7eb] bg-white py-1 shadow-xl" role="listbox" aria-label="영화 검색 제안" aria-busy={isSuggestionsLoading}>
         {isSuggestionsLoading && suggestions.length === 0 ? (
-          <p className="px-4 py-3 text-sm text-[#697180]">영화를 찾는 중...</p>
+          <div role="status" aria-label="검색 제안을 불러오는 중" className="space-y-3 px-4 py-3">
+            {Array.from({ length: 4 }, (_, index) => <div key={index} className="flex items-center gap-3"><SkeletonBlock className="size-8 shrink-0 rounded-full" /><SkeletonBlock className={`h-4 ${index % 2 === 0 ? "w-2/3" : "w-1/2"}`} /></div>)}
+          </div>
         ) : suggestions.length > 0 ? (
           suggestions.map((movie) => (
             <button

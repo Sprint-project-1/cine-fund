@@ -1,6 +1,6 @@
 # Git 협업 및 커밋 컨벤션
 
-> 저장소는 [Sprint-project-1/cine-fund](https://github.com/Sprint-project-1/cine-fund)로 개설되어 있고 `main` 브랜치를 확인했다. 현재 단일 저장소에 프런트엔드 scaffold가 있다. 코드잇 가이드의 `16기-{Cinefund}-{3팀}-{BE or FE}`는 저장소 이름 제안이었으며 실제 저장소명은 `cine-fund`다. 백엔드도 이 저장소에 둘지 별도 저장소로 둘지는 TBD.
+> 프런트엔드는 [Sprint-project-1/cine-fund](https://github.com/Sprint-project-1/cine-fund), 백엔드는 [Sprint-project-1/backend](https://github.com/Sprint-project-1/backend)에서 별도로 관리한다. 코드잇 가이드의 `16기-{Cinefund}-{3팀}-{BE or FE}`는 저장소 이름 제안이며 실제 저장소명은 각 GitHub 저장소를 기준으로 한다.
 
 커밋 가이드는 [느낌 있는 Commit Message 작성하기](https://nohack.tistory.com/17)의 type/scope/subject, 본문, Issue footer 구성과 작은 목적 단위 커밋 원칙을 참고해 팀용으로 단순화했다. 참고 글의 제목 길이 등 세부 문구는 팀 합의 전 강제 규칙으로 두지 않는다.
 

@@ -1,6 +1,6 @@
 # CineFund 프로젝트 개발 명세
 
-> 기준: 기존 기획안 최종 수정 2026-10-08 및 GitHub `main` 현재 상태 점검 · 저장소는 생성되었고 프런트엔드 scaffold가 있으나 기능 구현은 초기 단계다.
+> 기준: 기존 기획안 최종 수정 2026-10-08 및 2026-10-20 문서 동기화. FE와 BE는 별도 저장소로 관리한다. 아래 저장소 구현 상태는 백엔드 저장소를 가리키며, FE 구현/연동 상태는 [PAGE_SPEC](PAGE_SPEC.md)에서 관리한다.
 
 ## 배경 및 가치
 
@@ -29,7 +29,7 @@
 | ID | 요구사항 |
 |---|---|
 | FR-01 | 지정된 100편의 영화 목록을 기본 랜덤 순서로 조회하고 페이지당 10편 페이지네이션을 지원한다. 랜덤 순서 고정 기준은 TBD. |
-| FR-02 | 모의 펀딩 누적액/달성률을 기준으로 오름·내림 정렬을 제공한다. 목표액 숫자는 TMDB `productionBudget`을 환율 변환 없이 동일 숫자의 KRW 표시값으로 사용한다. 정렬 계약은 API 명세를 따른다. |
+| FR-02 | 모의 펀딩 누적액/달성률을 기준으로 오름·내림 정렬을 제공한다. 목표액은 TMDB 원본 USD 제작비를 환율 변환해 DB/API의 `productionBudget`에 KRW 정수로 보관한다. 환율·반올림은 TBD이며 정렬 계약은 API 명세를 따른다. |
 | FR-03 | 영화 상세 정보와 모의 펀딩 현황을 조회한다. 응답 필드·집계 계약은 API 명세를 따른다. |
 | FR-04 | 2~5개 선택 영화의 공통 항목을 비교하고 결과를 제공한다. 비교 항목은 TBD. |
 | FR-05 | 로그인·실제 결제 없는 모의 펀딩 기록을 생성한다. 요청/응답 및 입력 검증 제안은 API 명세를 따른다. 시안의 동의 체크 항목은 의미와 기록 필요성을 별도 결정한다. |
@@ -48,7 +48,7 @@
 
 ## 제약 및 외부 의존성
 
-기획에서 React/JSX/HTML/CSS, Node.js, PostgreSQL, Prisma를 정했다. 현재 `main` FE 도구는 Vite, React Router, Tailwind CSS v4, React Compiler, ESLint, pnpm이다. React/JSX scaffold 외 기능은 초기 단계이며 BE/DB는 저장소에 아직 확인되지 않는다. Prisma는 백엔드 ORM이고 Express는 미정이다. TMDB는 지정 100편을 초기 seed/import할 때 호출해 메타데이터를 DB에 저장하며 앱 요청 때 실시간 호출하지 않는 구조를 계획한다. API 키와 초기 적재 실패/갱신 절차를 정해야 한다. 목표액 표시 규칙은 TMDB 제작비 숫자를 환율 변환 없이 동일한 숫자의 KRW로 사용하는 것이다.
+프런트엔드는 별도 `cine-fund` 저장소에서 React/JSX, Vite, React Router, Tailwind CSS, React Compiler, ESLint, pnpm을 사용한다. 백엔드 저장소에는 Node.js, Express, Prisma, PostgreSQL 설정과 seed 골격이 있으며, 백엔드 구현 상태는 [ARCHITECTURE](ARCHITECTURE.md)와 [API_SPEC](API_SPEC.md)에 기록한다. TMDB는 고정 영화 100편을 선정해 JSON으로 저장하는 단계에 쓰며, DB seed와 앱 요청은 이 JSON/DB를 사용한다. API 키와 초기 적재 실패/갱신 절차를 관리한다. TMDB 원본 USD 제작비는 환산 규칙에 따라 KRW 정수 목표액으로 저장하고, 환율 숫자와 반올림 방식은 TBD다.
 
 ## 확장 계획
 
@@ -65,7 +65,7 @@
 
 ## 기술 쟁점 분석
 
-저장소 상태 확인: Vite/React JSX 프런트엔드 scaffold와 경로 placeholder가 `main`에 있다. 현재 확인한 트리에는 Node.js 백엔드, Prisma schema/migration, PostgreSQL 실행 설정, TMDB seed/import가 없다. 이는 프로젝트 목표에서 제외된 것이 아니라 아직 착수/등록되지 않은 상태다. 세부 패키지와 실행 명령은 [TECH_STACK](TECH_STACK.md), 화면 경로 비교는 [PAGE_SPEC](PAGE_SPEC.md)을 기준으로 한다.
+저장소 상태 확인: 프런트엔드 화면/API 호출 코드와 백엔드 DB·서버 골격은 서로 다른 저장소에서 관리한다. 백엔드 저장소의 Prisma schema/migration, PostgreSQL Compose, TMDB 영화 선정/JSON seed 및 API 구현 현황은 해당 백엔드 코드와 [API_SPEC](API_SPEC.md)을 대조한다. 세부 FE 실행 명령은 [TECH_STACK](TECH_STACK.md), 화면 경로는 [PAGE_SPEC](PAGE_SPEC.md)을 기준으로 한다.
 
 | 항목 | 현재 상태 / 문제 및 영향 | 권장 해결책 | 합의 |
 |---|---|---|---|
@@ -74,8 +74,8 @@
 | 영화 100편 적재 | 목록/식별자/초기화 방식 미정 | 외부 ID 포함 seed/import 스크립트와 검증 가능한 목록 준비 | 예 |
 | 랜덤+페이지네이션 | 페이지 요청마다 재랜덤하면 중복/누락 | 페이지 간 고정된 영화 순서를 사용하고 페이지 단위로 조회; 순서 유지 기준은 API/BE 합의 | 예 |
 | TMDB 의존성 | 초기 100편 적재 시 키/쿼터/네트워크 장애 가능 | 고정 ID 목록을 기준으로 server-side seed/import에서 DB에 저장; 재실행·부분 실패 처리와 정책 확인 | 예 |
-| 제작비=목표액 표시 | TMDB budget의 통화와 목표액 표시 규칙 | 원본 숫자를 환율 변환 없이 동일 숫자의 KRW 목표액으로 표시; NULL/0은 달성률 계산 불가 | 예 |
-| 달성률 | 목표값이 NULL/0인 영화 | 누적액 / productionBudget × 100; NULL/0은 계산 불가 | 예 |
+| 제작비=목표액 표시 | TMDB budget의 통화와 목표액 표시 규칙 | USD 제작비를 팀 환율로 KRW 정수 환산해 `productionBudget`에 저장; 환율·반올림 TBD | 예 |
+| 달성률 | 목표값이 NULL/0인 영화 | 누적액 / KRW `productionBudget` × 100; NULL/0은 계산 불가 | 예 |
 | 동시 펀딩 | 읽기-더하기-쓰기는 lost update 가능 | 펀딩 기록을 원장으로 저장하고 DB 트랜잭션/집계 또는 원자적 갱신; 기록이 원본 | 예 |
 | 모의 펀딩 | 결제 없이 실제 금전으로 오해 위험 | UI 전반에 모의/가상임을 표시, 결제 정보 수집 금지 | 예 |
 | 코멘트 수정 | 로그인 없이 비밀번호만으로 권한 부여 | 강한 해시(예: Argon2id/bcrypt 검토), rate limit, 단일 코멘트 ID 및 검증 절차 | 예 |
@@ -92,7 +92,9 @@
 - [ ] 100편 TMDB ID 고정 목록, 초기 데이터 입력/갱신 책임
 - [ ] Docker Compose 채택, 컨테이너 구성/버전/포트, 로컬 DB 초기화 명령
 - [ ] 공통 영화 100편 ID 파일(예: `prisma/seed-movie-ids.json`)의 소유자와 TMDB 메타데이터 갱신 주기
-- [x] 목표액 표시 규칙: TMDB 제작비 숫자를 환율 변환 없이 동일한 숫자의 KRW로 표시
+- [x] 목표액 기준: TMDB USD 제작비를 KRW 목표액으로 사용하고 API/DB에는 정수 KRW를 제공
+- [ ] USD→KRW 환율 숫자와 원 단위 반올림 규칙
+- [ ] seed/import가 TMDB USD 원본을 KRW `productionBudget`으로 변환하도록 변경 및 기존 DB 값 재적재
 - [ ] 제작비 NULL/0인 영화의 목표액/달성률 UI 처리
 - [ ] 펀딩 금액 최소·최대·정수 단위, 목표 초과 허용 여부
 - [ ] 펀딩/코멘트를 한 레코드로 볼지 별도 엔티티로 볼지
@@ -107,8 +109,8 @@
 - [x] 영화 탐색 번호형 페이지 UI는 방문 페이지별 cursor를 메모리에 보관해 연결한다. 검색/정렬/페이지 크기 변경 시 초기화한다. 랭킹은 스크롤 추가 표시를 cursor API에 연결한다.
 - [ ] TMDB seed/import 실패 시 재시도/부분 적재 복구와 갱신 주기/책임
 - [ ] 서버 프레임워크, API prefix/version, 배포 플랫폼 및 도메인/CORS
-- [ ] 현재 scaffold의 `/detail`, `/compare`, `/compare-result` 경로를 기존 기획의 `/{id}`, `/comparison`, `/results`와 어떻게 정렬할지
-- [ ] 현재 저장소에 백엔드도 둘지, 별도 저장소로 분리할지
+- [ ] `/detail/:movieId`는 FE 내부 ID 전달 경로로 구현했다. `/compare`와 `/compare-result`를 기획의 `/comparison`, `/results`와 일치시킬지 결정한다.
+- [x] 프런트엔드와 백엔드는 별도 저장소로 관리
 - [ ] pnpm 버전 고정 여부 및 공유 개발환경 실행 방식
 - [ ] 팀원, 담당, 회의/코어타임, 일정, 테스트 도구
 - [ ] `/ranking` 경로 및 정렬 UX 최종 확정
