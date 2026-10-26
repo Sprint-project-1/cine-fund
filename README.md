@@ -62,11 +62,11 @@
 
 | 이름 | GitHub |
 | --- | --- |
-| 송정현 | TBD |
-| 정하준 | TBD |
-| 자카 | TBD |
-| 임현주 | TBD |
-| 유신 | TBD |
+| 송정현 | Hallland |
+| 정하준 | hajwin110118 |
+| 자카 | iroNomad |
+| 임현주 | hyunju-dev |
+| 유신 | dachshund1216 |
 
 <br>
 
